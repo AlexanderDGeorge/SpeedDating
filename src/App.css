@@ -1,0 +1,37 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme static{
+  --color-cream: "#FDF6E3";
+  --color-navy: "#1B1B1B";
+  --color-orange: "#F45D01";
+  --color-gold: "#C19A6B";
+  --color-teal: "#497882";
+}
+
+@layer base {
+  body {
+    background-color: --var(--color-cream);
+  }
+
+  #root {
+    max-width: 1280px;
+    margin: 0 auto;
+    text-align: center;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  /* button {
+    background-color: #f9f9f9;
+  } */
+}
