@@ -1,7 +1,12 @@
 export type User = {
     id: string,
     name: string,
+    email: string,
     age: number,
     gender: string,
-    group: string
+    bio?: string,
+    group?: string,
+    isAdmin?: boolean,
+    createdAt?: string,
+    authProvider?: string
 }

@@ -11,13 +11,13 @@ import { getAuth } from "firebase/auth"; // Import getAuth for authentication
 
 console.log(import.meta.env.VITE_API_KEY)
 const firebaseConfig = {
-  apiKey: `${import.meta.env.VITE_API_KEY}`,
-  authDomain: "bsspeed-dating-app.firebaseapp.com",
-  projectId: "bsspeed-dating-app",
-  storageBucket: "bsspeed-dating-app.firebasestorage.app",
-  messagingSenderId: "424864421241",
-  appId: "1:424864421241:web:9b5d5757d31fbcff3d0ba8",
-  measurementId: "G-37KTTSHHJN"
+  apiKey: "AIzaSyBs-cT_o13V4-j9rF82m7Utg94kiMGUz9s",
+  authDomain: "speeddating-934e6.firebaseapp.com",
+  projectId: "speeddating-934e6",
+  storageBucket: "speeddating-934e6.firebasestorage.app",
+  messagingSenderId: "726771715171",
+  appId: "1:726771715171:web:6126e50a252079d1bbfc56",
+  measurementId: "G-FJKML15LMW"
 };
 
 // Initialize Firebase
