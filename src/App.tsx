@@ -6,7 +6,8 @@ import UserDashboard from "./pages/UserDashboard";
 import CompleteProfile from "./pages/CompleteProfile";
 import MatchingPage from "./pages/MatchingPage";
 import EditProfile from "./pages/EditProfile";
-import EventPage from "./pages/EventPage";
+import AdminEvent from "./pages/AdminEvent";
+import EventDetails from "./pages/EventDetails";
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./firebase";
@@ -75,7 +76,11 @@ function App() {
         />
         <Route 
           path="/admin/event/:eventId" 
-          element={isAuthenticated && isAdmin ? <EventPage /> : <Navigate to="/" />} 
+          element={isAuthenticated && isAdmin ? <AdminEvent /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/event/:eventId" 
+          element={isAuthenticated ? <EventDetails /> : <Navigate to="/auth" />} 
         />
       </Routes>
     </BrowserRouter>

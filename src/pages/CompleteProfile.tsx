@@ -5,11 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import Button from "../components/Button";
+import { getMaxBirthdayDate, getMinBirthdayDate } from "../utils/dateUtils";
 
 export default function CompleteProfile() {
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,10 +61,30 @@ export default function CompleteProfile() {
         return;
       }
 
-      // Validate age
-      const ageNum = parseInt(age);
-      if (isNaN(ageNum) || ageNum < 18 || ageNum > 100) {
-        setError("Please enter a valid age between 18 and 100");
+      // Validate birthday
+      if (!birthday) {
+        setError("Please enter your birthday");
+        setLoading(false);
+        return;
+      }
+      
+      // Validate age from birthday (must be at least 18)
+      const birthDate = new Date(birthday);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (age < 18) {
+        setError("You must be at least 18 years old to use this service");
+        setLoading(false);
+        return;
+      }
+      
+      if (age > 100) {
+        setError("Please enter a valid birthday");
         setLoading(false);
         return;
       }
@@ -79,14 +101,14 @@ export default function CompleteProfile() {
         name: name.trim(),
         email: user.email,
         gender: gender,
-        age: ageNum,
+        birthday: birthday,
         bio: bio.trim(),
         createdAt: new Date().toISOString(),
         isAdmin: false,
         authProvider: user.providerData[0]?.providerId || "email"
       });
 
-      navigate("/dashboard");
+      navigate("/");
     } catch (err) {
       setError("Failed to complete profile. Please try again.");
       setLoading(false);
@@ -161,16 +183,15 @@ export default function CompleteProfile() {
 
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Age *
+                  Birthday *
                 </label>
                 <input
                   className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
-                  type="number"
-                  placeholder="Enter your age"
-                  min="18"
-                  max="100"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  min={getMinBirthdayDate()}
+                  max={getMaxBirthdayDate()}
                   required
                 />
                 <p className="text-gray-500 text-sm mt-1">Must be 18 or older to participate</p>
@@ -194,17 +215,17 @@ export default function CompleteProfile() {
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
+              variant="secondary"
+              size="lg"
+              fullWidth
               disabled={loading}
-              className={`w-full p-3 rounded-lg mt-6 font-semibold transition-colors ${
-                loading 
-                  ? "bg-gray-400 text-white cursor-not-allowed" 
-                  : "bg-orange text-white hover:bg-navy"
-              }`}
+              loading={loading}
+              className="mt-6"
             >
-              {loading ? "Creating Profile..." : "Complete Profile"}
-            </button>
+              Complete Profile
+            </Button>
 
             <div className="text-center mt-6">
               <button

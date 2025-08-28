@@ -2,7 +2,7 @@ export type User = {
     id: string,
     name: string,
     email: string,
-    age: number,
+    birthday: string, // ISO date string
     gender: string,
     bio?: string,
     group?: string,

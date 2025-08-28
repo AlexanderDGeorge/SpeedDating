@@ -108,7 +108,7 @@ export default function UserAuth() {
         if (userData.isAdmin) {
           navigate("/admin");
         } else {
-          navigate("/dashboard");
+          navigate("/");
         }
       }
     } catch (err: any) {

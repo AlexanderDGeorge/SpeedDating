@@ -5,19 +5,21 @@ import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import Button from "../components/Button";
+import { getMaxBirthdayDate, getMinBirthdayDate, calculateAge } from "../utils/dateUtils";
 
 interface UserProfile {
   name: string;
   email: string;
   gender: string;
-  age: number;
+  birthday: string;
   bio?: string;
   createdAt: string;
 }
 
 export default function EditProfile() {
   const [gender, setGender] = useState("");
-  const [age, setAge] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,7 +48,7 @@ export default function EditProfile() {
         setName(userData.name);
         setEmail(userData.email);
         setGender(userData.gender);
-        setAge(userData.age.toString());
+        setBirthday(userData.birthday);
         setBio(userData.bio || "");
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -72,10 +74,23 @@ export default function EditProfile() {
         return;
       }
 
-      // Validate age
-      const ageNum = parseInt(age);
-      if (isNaN(ageNum) || ageNum < 18 || ageNum > 100) {
-        setError("Please enter a valid age between 18 and 100");
+      // Validate birthday
+      if (!birthday) {
+        setError("Please enter your birthday");
+        setLoading(false);
+        return;
+      }
+      
+      // Validate age from birthday (must be at least 18)
+      const age = calculateAge(birthday);
+      if (age < 18) {
+        setError("You must be at least 18 years old to use this service");
+        setLoading(false);
+        return;
+      }
+      
+      if (age > 100) {
+        setError("Please enter a valid birthday");
         setLoading(false);
         return;
       }
@@ -83,7 +98,7 @@ export default function EditProfile() {
       // Update user profile in Firestore
       await updateDoc(doc(db, "users", user.uid), {
         gender: gender,
-        age: ageNum,
+        birthday: birthday,
         bio: bio.trim(),
         updatedAt: new Date().toISOString()
       });
@@ -179,16 +194,15 @@ export default function EditProfile() {
 
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Age *
+                  Birthday *
                 </label>
                 <input
                   className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
-                  type="number"
-                  placeholder="Enter your age"
-                  min="18"
-                  max="100"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  min={getMinBirthdayDate()}
+                  max={getMaxBirthdayDate()}
                   required
                 />
                 <p className="text-gray-500 text-xs mt-1">Must be 18 or older</p>

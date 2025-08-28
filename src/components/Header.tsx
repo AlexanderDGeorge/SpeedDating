@@ -61,22 +61,24 @@ export default function Header({ showBackButton = false, backButtonText = "Back"
   };
 
   return (
-    <header className="bg-white border-b-4 border-navy p-6">
+    <header className="bg-white border-b-4 border-navy p-4 sm:p-6">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <button 
           onClick={handleHomeClick}
-          className="text-3xl font-bold text-navy hover:text-orange transition-colors"
+          className="text-2xl sm:text-3xl font-bold text-navy hover:text-orange transition-colors"
         >
-          The Bus Stop
+          <span className="hidden sm:inline">The Bus Stop</span>
+          <span className="sm:hidden">Bus Stop</span>
         </button>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {showBackButton && (
             <button
               onClick={() => navigate(backButtonPath)}
-              className="text-gray-600 hover:text-navy underline-animation"
+              className="text-gray-600 hover:text-navy underline-animation text-sm sm:text-base"
             >
-              {backButtonText}
+              <span className="hidden sm:inline">{backButtonText}</span>
+              <span className="sm:hidden">Back</span>
             </button>
           )}
           
@@ -85,14 +87,14 @@ export default function Header({ showBackButton = false, backButtonText = "Back"
               {isAuthenticated ? (
                 <button
                   onClick={handleSignOut}
-                  className="bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600 transition-colors font-semibold"
+                  className="bg-red-500 text-white px-3 py-2 sm:px-6 rounded hover:bg-red-600 transition-colors font-semibold text-sm sm:text-base"
                 >
                   Sign Out
                 </button>
               ) : (
                 <button
                   onClick={() => navigate("/auth")}
-                  className="bg-teal text-white px-6 py-2 rounded hover:bg-navy transition-colors font-semibold"
+                  className="bg-teal text-white px-3 py-2 sm:px-6 rounded hover:bg-navy transition-colors font-semibold text-sm sm:text-base"
                 >
                   Sign In
                 </button>

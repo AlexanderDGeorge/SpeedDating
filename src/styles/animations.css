@@ -45,3 +45,115 @@
   transform: scaleX(1);
   transform-origin: bottom left;
 }
+
+/* Loading animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(-90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 400% 400%;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton-text {
+  height: 1rem;
+  border-radius: 4px;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  border-radius: 4px;
+}
+
+.skeleton-avatar {
+  border-radius: 50%;
+}
+
+/* Button hover effects */
+.button-scale {
+  transition: transform 0.2s ease-in-out;
+}
+
+.button-scale:hover {
+  transform: scale(1.05);
+}
+
+.button-glow {
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.button-glow:hover {
+  box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+}
+
+/* Card animations */
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Form input animations */
+.input-focus {
+  transition: all 0.3s ease;
+}
+
+.input-focus:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 3px rgba(244, 93, 1, 0.1);
+}
