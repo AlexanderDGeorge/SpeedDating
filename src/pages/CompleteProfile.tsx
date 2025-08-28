@@ -11,6 +11,7 @@ import { getMaxBirthdayDate, getMinBirthdayDate } from "../utils/dateUtils";
 export default function CompleteProfile() {
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
+  const [interestedIn, setInterestedIn] = useState("");
   const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [error, setError] = useState("");
@@ -101,6 +102,7 @@ export default function CompleteProfile() {
         name: name.trim(),
         email: user.email,
         gender: gender,
+        interestedIn: interestedIn,
         birthday: birthday,
         bio: bio.trim(),
         createdAt: new Date().toISOString(),
@@ -165,6 +167,22 @@ export default function CompleteProfile() {
 
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
+                  Birthday *
+                </label>
+                <input
+                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  min={getMinBirthdayDate()}
+                  max={getMaxBirthdayDate()}
+                  required
+                />
+                <p className="text-gray-500 text-sm mt-1">Must be 18 or older to participate</p>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
                   Gender *
                 </label>
                 <select
@@ -183,18 +201,20 @@ export default function CompleteProfile() {
 
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Birthday *
+                  Interested In *
                 </label>
-                <input
+                <select
                   className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
-                  type="date"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  min={getMinBirthdayDate()}
-                  max={getMaxBirthdayDate()}
+                  value={interestedIn}
+                  onChange={(e) => setInterestedIn(e.target.value)}
                   required
-                />
-                <p className="text-gray-500 text-sm mt-1">Must be 18 or older to participate</p>
+                >
+                  <option value="">Select Preference</option>
+                  <option value="male">Men</option>
+                  <option value="female">Women</option>
+                  <option value="both">Both</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
 
               <div>
@@ -220,25 +240,12 @@ export default function CompleteProfile() {
               variant="secondary"
               size="lg"
               fullWidth
-              disabled={loading}
+              disabled={loading || !name.trim() || !gender || !interestedIn || !birthday}
               loading={loading}
               className="mt-6"
             >
               Complete Profile
             </Button>
-
-            <div className="text-center mt-6">
-              <button
-                type="button"
-                onClick={async () => {
-                  await auth.signOut();
-                  navigate("/auth");
-                }}
-                className="text-gray-600 hover:text-navy underline-animation"
-              >
-                Sign out and start over
-              </button>
-            </div>
           </form>
         </div>
       </main>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import logo from "../assets/TheBusStopLogo.avif";
 
 interface HeaderProps {
   showBackButton?: boolean;
@@ -61,14 +62,17 @@ export default function Header({ showBackButton = false, backButtonText = "Back"
   };
 
   return (
-    <header className="bg-white border-b-4 border-navy p-4 sm:p-6">
+    <header className="bg-cream border-b-4 border-navy p-4 sm:p-6">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <button 
           onClick={handleHomeClick}
-          className="text-2xl sm:text-3xl font-bold text-navy hover:text-orange transition-colors"
+          className="hover:opacity-80 transition-opacity"
         >
-          <span className="hidden sm:inline">The Bus Stop</span>
-          <span className="sm:hidden">Bus Stop</span>
+          <img 
+            src={logo} 
+            alt="The Bus Stop" 
+            className="h-10 sm:h-12 w-auto"
+          />
         </button>
 
         <div className="flex items-center gap-2 sm:gap-4">

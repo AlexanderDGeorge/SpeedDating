@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, addDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, addDoc, collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
@@ -27,8 +27,10 @@ export default function EventDetails() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrationCount, setRegistrationCount] = useState(0);
   const [registering, setRegistering] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userRegistrationId, setUserRegistrationId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -84,6 +86,9 @@ export default function EventDetails() {
       );
       const userRegistration = await getDocs(registrationsQuery);
       setIsRegistered(!userRegistration.empty);
+      if (!userRegistration.empty) {
+        setUserRegistrationId(userRegistration.docs[0].id);
+      }
 
       // Get total registration count
       const allRegistrationsQuery = query(
@@ -183,6 +188,25 @@ export default function EventDetails() {
     }
   };
 
+  const handleCheckIn = async () => {
+    if (!userRegistrationId) return;
+
+    setCheckingIn(true);
+    try {
+      await updateDoc(doc(db, "registrations", userRegistrationId), {
+        status: 'checked-in'
+      });
+      
+      alert("Successfully checked in for the event!");
+      
+    } catch (err) {
+      console.error("Error checking in:", err);
+      alert("Failed to check in. Please try again.");
+    } finally {
+      setCheckingIn(false);
+    }
+  };
+
   if (loading) {
     return <Loading fullPage={true} text="Loading event details..." />;
   }
@@ -205,11 +229,32 @@ export default function EventDetails() {
 
   const isPastEvent = new Date(event.date) < new Date();
   const isCancelled = event.status === 'cancelled';
+  const isCompleted = event.status === 'completed';
   const isRegistrationClosed = new Date(event.registrationDeadline) < new Date();
   const isFull = registrationCount >= event.maxParticipants;
   const userAge = userProfile ? calculateAge(userProfile.birthday) : 0;
   const meetsAgeRequirement = userProfile && userAge >= event.ageRangeMin && userAge <= event.ageRangeMax;
   const canRegister = !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && !isRegistered && meetsAgeRequirement;
+
+  // Check if check-in button should be shown (for registered users)
+  const showCheckInButton = isRegistered && !isPastEvent && !isCancelled && !isCompleted;
+  
+  // Check if check-in is enabled (15 minutes before event start)
+  const canCheckIn = (() => {
+    if (!showCheckInButton) return false;
+    
+    // Parse event date and start time
+    const [year, month, day] = event.date.split('-').map(num => parseInt(num));
+    const [hours, minutes] = event.startTime.split(':').map(num => parseInt(num));
+    const eventDateTime = new Date(year, month - 1, day, hours, minutes);
+    
+    // Check if current time is within 15 minutes of event start
+    const now = new Date();
+    const timeDiff = eventDateTime.getTime() - now.getTime();
+    const minutesUntilEvent = timeDiff / (1000 * 60);
+    
+    return minutesUntilEvent <= 15 && minutesUntilEvent > -60; // Available 15 min before to 60 min after start
+  })();
 
   // Format time to 12-hour format
   const formatTime = (time24: string) => {
@@ -309,15 +354,29 @@ export default function EventDetails() {
             {/* Registration Actions */}
             <div className="flex justify-center gap-4">
               {isRegistered ? (
-                <Button
-                  variant="danger"
-                  size="lg"
-                  onClick={handleCancelRegistration}
-                  disabled={registering || isPastEvent}
-                  loading={registering}
-                >
-                  Cancel Registration
-                </Button>
+                <>
+                  <Button
+                    variant="danger"
+                    size="lg"
+                    onClick={handleCancelRegistration}
+                    disabled={registering || isPastEvent}
+                    loading={registering}
+                  >
+                    Cancel Registration
+                  </Button>
+                  {showCheckInButton && (
+                    <Button
+                      variant="success"
+                      size="lg"
+                      onClick={handleCheckIn}
+                      disabled={!canCheckIn || checkingIn}
+                      loading={checkingIn}
+                      glow={canCheckIn}
+                    >
+                      Check In
+                    </Button>
+                  )}
+                </>
               ) : !isPastEvent && !isCancelled ? (
                 <Button
                   variant="primary"

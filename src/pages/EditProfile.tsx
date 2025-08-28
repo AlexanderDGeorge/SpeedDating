@@ -6,20 +6,17 @@ import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/Button";
-import { getMaxBirthdayDate, getMinBirthdayDate, calculateAge } from "../utils/dateUtils";
 
 interface UserProfile {
   name: string;
   email: string;
   gender: string;
-  birthday: string;
   bio?: string;
   createdAt: string;
 }
 
 export default function EditProfile() {
   const [gender, setGender] = useState("");
-  const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,7 +45,6 @@ export default function EditProfile() {
         setName(userData.name);
         setEmail(userData.email);
         setGender(userData.gender);
-        setBirthday(userData.birthday);
         setBio(userData.bio || "");
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -74,31 +70,25 @@ export default function EditProfile() {
         return;
       }
 
-      // Validate birthday
-      if (!birthday) {
-        setError("Please enter your birthday");
+      // Validate name
+      if (!name.trim() || name.trim().length < 2) {
+        setError("Please enter your full name");
         setLoading(false);
         return;
       }
-      
-      // Validate age from birthday (must be at least 18)
-      const age = calculateAge(birthday);
-      if (age < 18) {
-        setError("You must be at least 18 years old to use this service");
-        setLoading(false);
-        return;
-      }
-      
-      if (age > 100) {
-        setError("Please enter a valid birthday");
+
+      // Validate email
+      if (!email.trim() || !email.includes('@')) {
+        setError("Please enter a valid email address");
         setLoading(false);
         return;
       }
 
       // Update user profile in Firestore
       await updateDoc(doc(db, "users", user.uid), {
+        name: name.trim(),
+        email: email.trim(),
         gender: gender,
-        birthday: birthday,
         bio: bio.trim(),
         updatedAt: new Date().toISOString()
       });
@@ -146,34 +136,32 @@ export default function EditProfile() {
             )}
 
             <div className="space-y-4">
-              {/* Read-only fields */}
+              {/* Editable fields */}
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Name
+                  Name *
                 </label>
                 <input
-                  className="w-full p-3 border-2 border-gray-300 rounded bg-gray-100 cursor-not-allowed"
+                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
                   type="text"
                   value={name}
-                  disabled
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-                <p className="text-gray-500 text-xs mt-1">Name cannot be changed</p>
               </div>
 
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Email
+                  Email *
                 </label>
                 <input
-                  className="w-full p-3 border-2 border-gray-300 rounded bg-gray-100 cursor-not-allowed"
+                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
                   type="email"
                   value={email}
-                  disabled
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
                 />
-                <p className="text-gray-500 text-xs mt-1">Email cannot be changed</p>
               </div>
-
-              {/* Editable fields */}
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
                   Gender *
@@ -190,22 +178,6 @@ export default function EditProfile() {
                   <option value="non-binary">Non-binary</option>
                   <option value="prefer-not-to-say">Prefer not to say</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-                  Birthday *
-                </label>
-                <input
-                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
-                  type="date"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  min={getMinBirthdayDate()}
-                  max={getMaxBirthdayDate()}
-                  required
-                />
-                <p className="text-gray-500 text-xs mt-1">Must be 18 or older</p>
               </div>
 
               <div>

@@ -3,9 +3,10 @@ export type User = {
     name: string,
     email: string,
     birthday: string, // ISO date string
-    gender: string,
+    gender: 'male' | 'female' | 'non-binary' | 'prefer not to say',
+    interestedIn: 'men' | 'women' | 'other' | 'prefer not to say',
     bio?: string,
-    group?: string,
+    // group?: string,
     isAdmin?: boolean,
     createdAt?: string,
     authProvider?: string
