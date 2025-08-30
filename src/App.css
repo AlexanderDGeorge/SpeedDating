@@ -9,6 +9,7 @@
   --color-orange: "#F45D01";
   --color-gold: "#C19A6B";
   --color-teal: "#497882";
+  --font-futura: 'Futura' "Trebuchet MS", Arial, sans-serif;
 }
 
 @layer base {

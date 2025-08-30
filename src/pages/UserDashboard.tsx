@@ -110,31 +110,6 @@ export default function UserDashboard() {
             </div>
           </div>
 
-          {/* Profile Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-            <Button variant="primary" size="lg" fullWidth glow>
-              Browse Events
-            </Button>
-            <Button 
-              variant="warning" 
-              size="lg" 
-              fullWidth 
-              glow
-              onClick={() => navigate("/matching")}
-            >
-              Start Speed Dating
-            </Button>
-            <Button 
-              variant="secondary" 
-              size="lg" 
-              fullWidth 
-              glow
-              onClick={() => navigate("/edit-profile")}
-              className="sm:col-span-2 lg:col-span-1"
-            >
-              Edit Profile
-            </Button>
-          </div>
         </div>
       </main>
 
