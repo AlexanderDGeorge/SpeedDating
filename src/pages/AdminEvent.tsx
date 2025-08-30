@@ -4,7 +4,10 @@ import { auth } from "../firebase";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditEventForm from "../components/EditEventForm";
+import Loading from "../components/Loading";
+import Button from "../components/Button";
 import { calculateAge } from "../utils/dateUtils";
+import { Calendar, Clock, Users, UserCheck, UserX } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import type { User } from "../types";
@@ -127,11 +130,7 @@ export default function AdminEvent() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="text-navy text-xl">Loading event data...</div>
-      </div>
-    );
+    return <Loading fullPage={true} text="Loading event data..." />;
   }
 
   if (error || !event) {
@@ -139,26 +138,27 @@ export default function AdminEvent() {
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-600 text-xl mb-4">{error || "Event not found"}</div>
-          <button
+          <Button 
+            variant="primary"
             onClick={() => navigate("/admin")}
-            className="bg-navy text-white px-6 py-2 rounded hover:bg-orange transition-colors"
           >
             Back to Admin Dashboard
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
-  const isPastEvent = new Date(event.date) < new Date();
+  const eventDate = new Date(event.start);
+  const isPastEvent = eventDate < new Date();
   
   const getEventStatusDisplay = () => {
     if (event.status === 'cancelled') {
-      return { text: 'Cancelled', class: 'bg-red-200 text-red-700' };
+      return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
     } else if (isPastEvent) {
-      return { text: 'Completed', class: 'bg-gray-200 text-gray-700' };
+      return { text: 'Completed', class: 'bg-green-100 text-green-800 border-green-200' };
     } else {
-      return { text: 'Upcoming', class: 'bg-green-100 text-green-700' };
+      return { text: 'Upcoming', class: 'bg-blue-100 text-blue-800 border-blue-200' };
     }
   };
 
@@ -169,86 +169,103 @@ export default function AdminEvent() {
       <Header/>
 
       {/* Main Content */}
-      <main className="flex-grow p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Event Info */}
-          <div className="bg-white border-4 border-navy p-8 rounded-lg shadow-lg mb-8">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-left text-navy mb-2">{event.title}</h1>
-                <p className="text-gray-700 text-lg text-left">{event.description}</p>
-              </div>
-              <div className={`px-4 py-2 rounded-lg font-semibold ${eventStatus.class}`}>
+      <main className="flex-grow p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Event Details Card */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            {/* Status Badge */}
+            <div className="flex justify-start mb-4">
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class}`}>
                 {eventStatus.text}
-              </div>
+              </span>
+            </div>
+            
+            {/* Title and Description */}
+            <div className="mb-6">
+              <h1 className="text-2xl sm:text-3xl text-left font-bold text-navy mb-2">{event.title}</h1>
+              {event.description && (
+                <p className="text-gray-700 text-lg text-left">{event.description}</p>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Date</p>
-                <p className="font-semibold text-navy whitespace-pre-line">{(() => {
-                  // Parse the date string and add timezone offset to avoid day shifting
-                  const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-                  const date = new Date(year, month - 1, day); // month is 0-indexed
-                  const formatted = date.toLocaleDateString('en-US', { 
-                    weekday: 'long',
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  });
-                  return formatted.replace(/^(\w+), /, '$1,\n');
-                })()}</p>
+            <div className="space-y-4">
+              {/* Date */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Calendar className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Date: </span>
+                  <span>{eventDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Time</p>
-                <p className="font-semibold text-navy">{(() => {
-                  const [hours, minutes] = event.startTime.split(':');
-                  const hour12 = parseInt(hours);
-                  const ampm = hour12 >= 12 ? 'PM' : 'AM';
-                  const displayHour = hour12 % 12 || 12;
-                  return `${displayHour}:${minutes} ${ampm}`;
-                })()}</p>
+
+              {/* Time */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Clock className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Time: </span>
+                  <span>{eventDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Male Capacity</p>
-                <p className="font-semibold text-navy">{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'male').length} / {event.maleCapacity}</p>
+
+              {/* Age Range */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Age Range: </span>
+                  <span>{event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'} years</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Female Capacity</p>
-                <p className="font-semibold text-navy">{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'female').length} / {event.femaleCapacity}</p>
+
+              {/* Male Capacity */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Male Capacity: </span>
+                  <span>{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'male').length} / {event.maleCapacity}</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Age Range</p>
-                <p className="font-semibold text-navy">{event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'}</p>
+
+              {/* Female Capacity */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Female Capacity: </span>
+                  <span>{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'female').length} / {event.femaleCapacity}</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Registration Deadline</p>
-                <p className="font-semibold text-navy whitespace-pre-line">{(() => {
-                  // Parse the date string and add timezone offset to avoid day shifting
-                  const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
-                  const date = new Date(year, month - 1, day); // month is 0-indexed
-                  const formatted = date.toLocaleDateString('en-US', { 
-                    weekday: 'long',
-                    month: 'short', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  });
-                  return formatted.replace(/^(\w+), /, '$1,\n');
-                })()}</p>
+
+
+              {/* Checked In */}
+              <div className="flex items-center text-sm text-gray-700">
+                <UserCheck className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Checked In: </span>
+                  <span>{registrations.filter(r => r.status === 'checked-in').length} participants</span>
+                </div>
               </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Checked In</p>
-                <p className="font-semibold text-navy">{registrations.filter(r => r.status === 'checked-in').length}</p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">No Shows</p>
-                <p className="font-semibold text-navy">{registrations.filter(r => r.status === 'no-show').length}</p>
+
+              {/* No Shows */}
+              <div className="flex items-center text-sm text-gray-700">
+                <UserX className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">No Shows: </span>
+                  <span>{registrations.filter(r => r.status === 'no-show').length} participants</span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Registrants Table */}
-          <div className="bg-white border-4 border-navy p-8 rounded-lg shadow-lg">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
             <h2 className="text-2xl font-bold text-navy mb-6">
               {isPastEvent ? 'Event Participants' : 'Registered Users'} ({registrations.length})
             </h2>
@@ -257,32 +274,32 @@ export default function AdminEvent() {
               <div className="overflow-x-auto">
                 <table className="w-full table-auto border-collapse">
                   <thead>
-                    <tr className="bg-navy text-white">
-                      <th className="p-3 border text-left">Name</th>
-                      <th className="p-3 border text-left">Email</th>
-                      <th className="p-3 border text-left">Age</th>
-                      <th className="p-3 border text-left">Gender</th>
-                      <th className="p-3 border text-left">Status</th>
-                      <th className="p-3 border text-left">Registered</th>
+                    <tr className="bg-gray-50 text-gray-700">
+                      <th className="p-3 border-b text-left font-semibold">Name</th>
+                      <th className="p-3 border-b text-left font-semibold">Email</th>
+                      <th className="p-3 border-b text-left font-semibold">Age</th>
+                      <th className="p-3 border-b text-left font-semibold">Gender</th>
+                      <th className="p-3 border-b text-left font-semibold">Status</th>
+                      <th className="p-3 border-b text-left font-semibold">Registered</th>
                     </tr>
                   </thead>
                   <tbody>
                     {registrations.map((registration) => {
                       const user = getUserForRegistration(registration.userId);
                       return (
-                        <tr key={registration.id} className="bg-cream hover:bg-white transition-colors">
-                          <td className="p-3 border">
-                            <p className="font-semibold text-navy">{user?.name || 'Unknown User'}</p>
+                        <tr key={registration.id} className="hover:bg-gray-50 transition-colors border-b">
+                          <td className="p-3">
+                            <p className="font-semibold text-gray-900">{user?.name || 'Unknown User'}</p>
                           </td>
-                          <td className="p-3 border text-sm">{user?.email || 'N/A'}</td>
-                          <td className="p-3 border text-center">{user?.birthday ? calculateAge(user.birthday) : 'N/A'}</td>
-                          <td className="p-3 border capitalize">{user?.gender || 'N/A'}</td>
-                          <td className="p-3 border">
+                          <td className="p-3 text-sm text-gray-600">{user?.email || 'N/A'}</td>
+                          <td className="p-3 text-center text-gray-600">{user?.birthday ? calculateAge(user.birthday) : 'N/A'}</td>
+                          <td className="p-3 capitalize text-gray-600">{user?.gender || 'N/A'}</td>
+                          <td className="p-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(registration.status)}`}>
                               {getStatusText(registration.status)}
                             </span>
                           </td>
-                          <td className="p-3 border text-sm">
+                          <td className="p-3 text-sm text-gray-600">
                             {new Date(registration.registeredAt).toLocaleDateString()}
                           </td>
                         </tr>
@@ -311,24 +328,20 @@ export default function AdminEvent() {
 
           {/* Admin Action Buttons */}
           {!showEditForm && event && event.status !== 'cancelled' && !isPastEvent && (
-            <div className="mt-8 flex gap-4 justify-center">
-              <button
+            <div className="flex gap-4 justify-center">
+              <Button
+                variant="secondary"
                 onClick={() => setShowEditForm(true)}
-                className="bg-orange text-white px-6 py-3 rounded-lg hover:bg-navy transition-colors font-semibold"
               >
                 Edit Event
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="danger"
                 onClick={handleCancelEvent}
-                disabled={cancelLoading}
-                className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                  cancelLoading 
-                    ? "bg-gray-400 text-white cursor-not-allowed" 
-                    : "bg-red-500 text-white hover:bg-red-600"
-                }`}
+                loading={cancelLoading}
               >
                 {cancelLoading ? "Cancelling..." : "Cancel Event"}
-              </button>
+              </Button>
             </div>
           )}
         </div>

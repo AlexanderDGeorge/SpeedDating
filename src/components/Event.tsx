@@ -10,7 +10,8 @@ interface EventProps {
 export default function Event({ event, onClick }: EventProps) {
   const navigate = useNavigate();
 
-  const isPastEvent = new Date(event.date) < new Date();
+  const eventDate = new Date(event.start);
+  const isPastEvent = eventDate < new Date();
   const isCancelled = event.status === 'cancelled';
   const isCompleted = event.status === 'completed' || isPastEvent;
   const isUpcoming = !isPastEvent && !isCancelled && !isCompleted;
@@ -36,14 +37,6 @@ export default function Event({ event, onClick }: EventProps) {
 
   const statusConfig = getStatusConfig();
 
-  // Convert 24-hour time to 12-hour format
-  const formatTime = (time24: string) => {
-    const [hours, minutes] = time24.split(':');
-    const hour12 = parseInt(hours);
-    const ampm = hour12 >= 12 ? 'PM' : 'AM';
-    const displayHour = hour12 % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
 
   const handleClick = () => {
     if (onClick) {
@@ -81,22 +74,22 @@ export default function Event({ event, onClick }: EventProps) {
         {/* Date */}
         <div className="flex items-center text-sm text-gray-700">
           <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-          <span>{(() => {
-            const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-            const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('en-US', { 
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-          })()}</span>
+          <span>{eventDate.toLocaleDateString('en-US', { 
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}</span>
         </div>
 
         {/* Time */}
         <div className="flex items-center text-sm text-gray-700">
           <Clock className="w-4 h-4 mr-2 text-gray-500" />
-          <span>{formatTime(event.startTime)}</span>
+          <span>{eventDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          })}</span>
         </div>
 
         {/* Age Range */}

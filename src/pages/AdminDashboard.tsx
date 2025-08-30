@@ -38,14 +38,12 @@ export default function AdminDashboard() {
       <main className="flex-grow p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Create Event Button */}
-          <div className="flex justify-center">
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-orange text-white px-6 py-2 rounded hover:bg-navy transition-colors font-semibold"
+              className="align-left bg-orange text-white px-6 py-2 rounded hover:bg-navy transition-colors font-semibold"
             >
               {showCreateForm ? 'Cancel' : 'Create New Event'}
             </button>
-          </div>
 
           {showCreateForm && (
             <CreateEventForm 
@@ -63,9 +61,9 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <div className="bg-white border-4 border-teal p-6 rounded-lg text-center">
-              <p className="text-gray-600">No upcoming events.</p>
-              <p className="text-gray-500 text-sm mt-2">Create your first event to get started!</p>
+            <div className="text-center">
+              <p className="text-gray-700">No upcoming events.</p>
+              <p className="text-gray-700 mt-2">Create your first event to get started!</p>
             </div>
           )}
 
@@ -78,9 +76,7 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <div className="bg-white border-4 border-teal p-6 rounded-lg text-center">
-              <p className="text-gray-600">No past events yet.</p>
-            </div>
+            <p className="text-gray-700">No past events yet.</p>
           )}
         </div>
       </main>

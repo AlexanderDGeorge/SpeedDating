@@ -5,7 +5,7 @@ import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
 import { calculateAge } from "../utils/dateUtils";
-import { Calendar, Clock, Users, AlertCircle, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Users, CheckCircle } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import { fetchEventById } from "../firebase/event";
@@ -94,9 +94,9 @@ export default function EventDetails() {
         return;
       }
 
-      // Check if registration deadline has passed
-      if (new Date(event.registrationDeadline) < new Date()) {
-        alert("Registration deadline has passed for this event.");
+      // Check if event has already started
+      if (new Date(event.start) < new Date()) {
+        alert("Registration is closed as the event has already started.");
         return;
       }
 
@@ -198,10 +198,11 @@ export default function EventDetails() {
     );
   }
 
-  const isPastEvent = new Date(event.date) < new Date();
+  const eventDate = new Date(event.start);
+  const isPastEvent = eventDate < new Date();
   const isCancelled = event.status === 'cancelled';
   const isCompleted = event.status === 'completed';
-  const isRegistrationClosed = new Date(event.registrationDeadline) < new Date();
+  const isRegistrationClosed = new Date(event.start) < new Date();
   const userGender = userProfile?.gender;
   const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
   const currentGenderCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
@@ -217,10 +218,8 @@ export default function EventDetails() {
   const canCheckIn = (() => {
     if (!showCheckInButton) return false;
     
-    // Parse event date and start time
-    const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-    const [hours, minutes] = event.startTime.split(':').map(num => parseInt(num));
-    const eventDateTime = new Date(year, month - 1, day, hours, minutes);
+    // Parse event date and start time from ISO string
+    const eventDateTime = new Date(event.start);
     
     // Check if current time is within 15 minutes of event start
     const now = new Date();
@@ -230,20 +229,12 @@ export default function EventDetails() {
     return minutesUntilEvent <= 15 && minutesUntilEvent > -60; // Available 15 min before to 60 min after start
   })();
 
-  // Format time to 12-hour format
-  const formatTime = (time24: string) => {
-    const [hours, minutes] = time24.split(':');
-    const hour12 = parseInt(hours);
-    const ampm = hour12 >= 12 ? 'PM' : 'AM';
-    const displayHour = hour12 % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
 
   const getEventStatus = () => {
     if (isCancelled) return { text: 'Cancelled', class: 'bg-red-200 text-red-700' };
     if (isPastEvent) return { text: 'Completed', class: 'bg-green-200 text-green-800' };
     if (isFull) return { text: 'Full', class: 'bg-orange-200 text-orange-800' };
-    if (isRegistrationClosed) return { text: 'Registration Closed', class: 'bg-gray-200 text-gray-700' };
+    if (isRegistrationClosed) return { text: 'Event Started', class: 'bg-gray-200 text-gray-700' };
     return { text: 'Open for Registration', class: 'bg-teal-100 text-teal-700' };
   };
 
@@ -277,16 +268,12 @@ export default function EventDetails() {
                 <Calendar className="w-5 h-5 mr-3 text-gray-500" />
                 <div>
                   <span className="font-semibold">Date: </span>
-                  <span>{(() => {
-                    const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-                    const date = new Date(year, month - 1, day);
-                    return date.toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    });
-                  })()}</span>
+                  <span>{eventDate.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</span>
                 </div>
               </div>
 
@@ -295,7 +282,11 @@ export default function EventDetails() {
                 <Clock className="w-5 h-5 mr-3 text-gray-500" />
                 <div>
                   <span className="font-semibold">Time: </span>
-                  <span>{formatTime(event.startTime)}</span>
+                  <span>{eventDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}</span>
                 </div>
               </div>
 
@@ -322,23 +313,6 @@ export default function EventDetails() {
                 </div>
               </div>
 
-              {/* Registration Deadline */}
-              <div className="flex items-center text-sm text-gray-700">
-                <AlertCircle className="w-5 h-5 mr-3 text-gray-500" />
-                <div>
-                  <span className="font-semibold">Registration Deadline: </span>
-                  <span>{(() => {
-                    const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
-                    const date = new Date(year, month - 1, day);
-                    return date.toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    });
-                  })()}</span>
-                </div>
-              </div>
 
               {/* Your Status */}
               <div className="flex items-center text-sm text-gray-700">
@@ -386,7 +360,7 @@ export default function EventDetails() {
                 onClick={canRegister ? handleRegister : undefined}
                 disabled={!canRegister || registering}
                 loading={registering}
-                glow={canRegister}
+                glow={canRegister ? canRegister : false}
               >
                 Register for Event
               </Button>
@@ -399,7 +373,7 @@ export default function EventDetails() {
               {isPastEvent && <p className="text-gray-600">This event has already taken place.</p>}
               {isCancelled && <p className="text-red-600">This event has been cancelled.</p>}
               {isRegistrationClosed && !isPastEvent && !isCancelled && (
-                <p className="text-orange-600">Registration deadline has passed.</p>
+                <p className="text-orange-600">Registration is closed as the event has started.</p>
               )}
               {isFull && !isRegistrationClosed && !isPastEvent && !isCancelled && (
                 <p className="text-orange-600">This event is currently full.</p>
@@ -436,16 +410,7 @@ export default function EventDetails() {
               <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700">
                 <li>Please arrive 10 minutes before the start time</li>
                 <li>Age range for this event: {event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'} years</li>
-                <li>Registration closes on {(() => {
-                  const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
-                  const date = new Date(year, month - 1, day);
-                  return date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  });
-                })()}</li>
+                <li>Registration closes when the event starts</li>
                 <li>Limited to {event.maleCapacity} males and {event.femaleCapacity} females</li>
               </ul>
             </div>

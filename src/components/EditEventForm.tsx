@@ -19,7 +19,6 @@ export default function EditEventForm({ event, onEventUpdated, onCancel }: EditE
   const [femaleCapacity, setFemaleCapacity] = useState("");
   const [ageRangeMin, setAgeRangeMin] = useState("");
   const [ageRangeMax, setAgeRangeMax] = useState("");
-  const [registrationDeadline, setRegistrationDeadline] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,13 +26,18 @@ export default function EditEventForm({ event, onEventUpdated, onCancel }: EditE
     if (event) {
       setTitle(event.title);
       setDescription(event.description || "");
-      setDate(event.date);
-      setStartTime(event.startTime);
+      
+      // Parse the ISO start date to extract date and time components
+      const eventDate = new Date(event.start);
+      const dateStr = eventDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = eventDate.toTimeString().slice(0, 5); // HH:mm
+      
+      setDate(dateStr);
+      setStartTime(timeStr);
       setMaleCapacity(event.maleCapacity.toString());
       setFemaleCapacity(event.femaleCapacity.toString());
       setAgeRangeMin(event.ageRangeMin.toString());
       setAgeRangeMax(event.ageRangeMax ? event.ageRangeMax.toString() : "");
-      setRegistrationDeadline(event.registrationDeadline);
     }
   }, [event]);
 
@@ -81,16 +85,18 @@ export default function EditEventForm({ event, onEventUpdated, onCancel }: EditE
       }
 
 
+      // Combine date and time into ISO string
+      const startDateTime = new Date(`${date}T${startTime}:00`);
+      const startISO = startDateTime.toISOString();
+
       // Update event object
       const eventData: any = {
         title: title.trim(),
         description: description.trim(),
-        date,
-        startTime,
+        start: startISO,
         maleCapacity: maleCapacityNum,
         femaleCapacity: femaleCapacityNum,
         ageRangeMin: ageRangeMinNum,
-        registrationDeadline,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid
       };
@@ -250,19 +256,6 @@ export default function EditEventForm({ event, onEventUpdated, onCancel }: EditE
           </div>
         </div>
 
-        <div>
-          <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-            Registration Deadline *
-          </label>
-          <input
-            className="w-full p-3 border-2 border-gray-300 rounded bg-white focus:border-orange focus:outline-none"
-            type="date"
-            value={registrationDeadline}
-            onChange={(e) => setRegistrationDeadline(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
-        </div>
 
         <div className="flex gap-4 pt-4">
           <Button

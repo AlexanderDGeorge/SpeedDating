@@ -17,7 +17,6 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
   const [femaleCapacity, setFemaleCapacity] = useState("");
   const [ageRangeMin, setAgeRangeMin] = useState("");
   const [ageRangeMax, setAgeRangeMax] = useState("");
-  const [registrationDeadline, setRegistrationDeadline] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -65,16 +64,17 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
       }
 
 
+      // Combine date and time into ISO string
+      const startISO = new Date(`${date}T${startTime}`).toISOString();
+
       // Create event object
       const eventData: any = {
         title: title.trim(),
         description: description.trim(),
-        date,
-        startTime,
+        start: startISO,
         maleCapacity: maleCapacityNum,
         femaleCapacity: femaleCapacityNum,
         ageRangeMin: ageRangeMinNum,
-        registrationDeadline,
         createdAt: new Date().toISOString(),
         createdBy: user.uid,
         status: 'upcoming' as const
@@ -97,7 +97,6 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
       setFemaleCapacity("");
       setAgeRangeMin("");
       setAgeRangeMax("");
-      setRegistrationDeadline("");
       
       // Notify parent component
       onEventCreated();
@@ -246,19 +245,6 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
           </div>
         </div>
 
-        <div>
-          <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-            Registration Deadline *
-          </label>
-          <input
-            className="w-full p-3 border-2 border-gray-300 rounded bg-white focus:border-orange focus:outline-none"
-            type="date"
-            value={registrationDeadline}
-            onChange={(e) => setRegistrationDeadline(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
-        </div>
 
         <div className="flex gap-4 pt-4">
           <Button

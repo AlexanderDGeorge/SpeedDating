@@ -9,6 +9,8 @@ import { updateUser } from "../firebase/user";
 
 export default function EditProfile() {
   const [gender, setGender] = useState("");
+  const [interestedIn, setInterestedIn] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -34,6 +36,8 @@ export default function EditProfile() {
     setName(userProfile.name);
     setEmail(userProfile.email);
     setGender(userProfile.gender);
+    setInterestedIn(userProfile.interestedIn || "");
+    setBirthday(userProfile.birthday || "");
     setBio(userProfile.bio || "");
     setInitialLoading(false);
   }, [currentUser, userProfile, navigate]);
@@ -64,11 +68,27 @@ export default function EditProfile() {
         return;
       }
 
+      // Validate birthday
+      if (!birthday) {
+        setError("Please enter your birthday");
+        setLoading(false);
+        return;
+      }
+
+      // Validate interested in
+      if (!interestedIn) {
+        setError("Please select who you're interested in");
+        setLoading(false);
+        return;
+      }
+
       // Update user profile in Firestore
       await updateUser(currentUser.uid, {
         name: name.trim(),
         email: email.trim(),
         gender: gender,
+        interestedIn: interestedIn,
+        birthday: birthday,
         bio: bio.trim(),
         updatedAt: new Date().toISOString()
       });
@@ -142,6 +162,21 @@ export default function EditProfile() {
                   required
                 />
               </div>
+              
+              <div>
+                <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
+                  Birthday *
+                </label>
+                <input
+                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
                   Gender *
@@ -157,6 +192,24 @@ export default function EditProfile() {
                   <option value="female">Female</option>
                   <option value="non-binary">Non-binary</option>
                   <option value="prefer-not-to-say">Prefer not to say</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
+                  Interested In *
+                </label>
+                <select
+                  className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
+                  value={interestedIn}
+                  onChange={(e) => setInterestedIn(e.target.value)}
+                  required
+                >
+                  <option value="">Select Preference</option>
+                  <option value="men">Men</option>
+                  <option value="women">Women</option>
+                  <option value="other">Other</option>
+                  <option value="prefer not to say">Prefer not to say</option>
                 </select>
               </div>
 

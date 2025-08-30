@@ -26,11 +26,9 @@ export async function fetchUpcomingEvents(): Promise<SpeedDatingEvent[]> {
   })) as SpeedDatingEvent[];
   
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
   
   return eventsData.filter(event => {
-    const eventDate = new Date(event.date);
-    eventDate.setHours(0, 0, 0, 0);
+    const eventDate = new Date(event.start);
     return eventDate >= now;
   });
 }
@@ -60,18 +58,16 @@ export async function getUpcomingAndPastEvents(): Promise<{ upcoming: SpeedDatin
   })) as SpeedDatingEvent[];
   
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const upcoming = [] as SpeedDatingEvent[];
+  const past = [] as SpeedDatingEvent[];
   
-  const upcoming = eventsData.filter(event => {
-    const eventDate = new Date(event.date);
-    eventDate.setHours(0, 0, 0, 0);
-    return eventDate >= now;
-  });
-  
-  const past = eventsData.filter(event => {
-    const eventDate = new Date(event.date);
-    eventDate.setHours(0, 0, 0, 0);
-    return eventDate < now;
+  eventsData.forEach(event => {
+    const eventDate = new Date(event.start);
+    if (eventDate >= now) {
+      upcoming.push(event);
+    } else {
+      past.push(event);
+    }
   });
   
   return { upcoming, past };
