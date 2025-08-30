@@ -234,12 +234,16 @@ export default function AdminEvent() {
                 })()}</p>
               </div>
               <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Capacity</p>
-                <p className="font-semibold text-navy">{registrations.length} / {event.maxParticipants}</p>
+                <p className="text-gray-600 text-sm">Male Capacity</p>
+                <p className="font-semibold text-navy">{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'male').length} / {event.maleCapacity}</p>
+              </div>
+              <div className="bg-cream p-4 rounded-lg">
+                <p className="text-gray-600 text-sm">Female Capacity</p>
+                <p className="font-semibold text-navy">{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'female').length} / {event.femaleCapacity}</p>
               </div>
               <div className="bg-cream p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Age Range</p>
-                <p className="font-semibold text-navy">{event.ageRangeMin} - {event.ageRangeMax}</p>
+                <p className="font-semibold text-navy">{event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'}</p>
               </div>
               <div className="bg-cream p-4 rounded-lg">
                 <p className="text-gray-600 text-sm">Registration Deadline</p>

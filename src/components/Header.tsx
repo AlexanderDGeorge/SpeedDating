@@ -16,31 +16,14 @@ export default function Header() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setIsAuthenticated(true);
-        // Check if user profile exists and is complete
+        // Check if user is admin
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setIsAdmin(userData.isAdmin || false);
-            
-            // Check if profile is complete (has required fields)
-            const isProfileComplete = userData.name && 
-                                     userData.gender && 
-                                     userData.interestedIn && 
-                                     userData.birthday;
-            
-            // If profile is incomplete and not already on complete-profile page, redirect
-            if (!isProfileComplete && !window.location.pathname.includes('/complete-profile')) {
-              navigate("/complete-profile");
-            }
-          } else {
-            // If user document doesn't exist, redirect to complete profile
-            if (!window.location.pathname.includes('/complete-profile')) {
-              navigate("/complete-profile");
-            }
+            setIsAdmin(userDoc.data().isAdmin || false);
           }
         } catch (error) {
-          console.error("Error checking user profile:", error);
+          console.error("Error checking admin status:", error);
         }
       } else {
         setIsAuthenticated(false);
@@ -50,7 +33,7 @@ export default function Header() {
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {

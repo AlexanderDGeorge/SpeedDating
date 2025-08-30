@@ -13,7 +13,8 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState("");
+  const [maleCapacity, setMaleCapacity] = useState("");
+  const [femaleCapacity, setFemaleCapacity] = useState("");
   const [ageRangeMin, setAgeRangeMin] = useState("");
   const [ageRangeMax, setAgeRangeMax] = useState("");
   const [registrationDeadline, setRegistrationDeadline] = useState("");
@@ -34,37 +35,55 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
       }
 
       // Validate form data
-      const maxParticipantsNum = parseInt(maxParticipants);
+      const maleCapacityNum = parseInt(maleCapacity);
+      const femaleCapacityNum = parseInt(femaleCapacity);
       const ageRangeMinNum = parseInt(ageRangeMin);
-      const ageRangeMaxNum = parseInt(ageRangeMax);
+      const ageRangeMaxNum = ageRangeMax ? parseInt(ageRangeMax) : undefined;
 
-      if (isNaN(maxParticipantsNum) || maxParticipantsNum < 4) {
-        setError("Maximum participants must be at least 4");
+      if (isNaN(maleCapacityNum) || maleCapacityNum < 2) {
+        setError("Male capacity must be at least 2");
         setLoading(false);
         return;
       }
 
-      if (isNaN(ageRangeMinNum) || isNaN(ageRangeMaxNum) || ageRangeMinNum >= ageRangeMaxNum) {
-        setError("Please enter valid age range");
+      if (isNaN(femaleCapacityNum) || femaleCapacityNum < 2) {
+        setError("Female capacity must be at least 2");
+        setLoading(false);
+        return;
+      }
+
+      if (isNaN(ageRangeMinNum) || ageRangeMinNum < 18) {
+        setError("Minimum age must be at least 18");
+        setLoading(false);
+        return;
+      }
+
+      if (ageRangeMaxNum !== undefined && (isNaN(ageRangeMaxNum) || ageRangeMinNum >= ageRangeMaxNum)) {
+        setError("Maximum age must be greater than minimum age");
         setLoading(false);
         return;
       }
 
 
       // Create event object
-      const eventData = {
+      const eventData: any = {
         title: title.trim(),
         description: description.trim(),
         date,
         startTime,
-        maxParticipants: maxParticipantsNum,
+        maleCapacity: maleCapacityNum,
+        femaleCapacity: femaleCapacityNum,
         ageRangeMin: ageRangeMinNum,
-        ageRangeMax: ageRangeMaxNum,
         registrationDeadline,
         createdAt: new Date().toISOString(),
         createdBy: user.uid,
         status: 'upcoming' as const
       };
+      
+      // Only add ageRangeMax if it's provided
+      if (ageRangeMaxNum !== undefined) {
+        eventData.ageRangeMax = ageRangeMaxNum;
+      }
 
       // Save to Firestore
       await addDoc(collection(db, "events"), eventData);
@@ -74,7 +93,8 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
       setDescription("");
       setDate("");
       setStartTime("");
-      setMaxParticipants("");
+      setMaleCapacity("");
+      setFemaleCapacity("");
       setAgeRangeMin("");
       setAgeRangeMax("");
       setRegistrationDeadline("");
@@ -159,23 +179,41 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-              Max Participants *
+              Male Capacity *
             </label>
             <input
               className="w-full p-3 border-2 border-gray-300 rounded bg-white focus:border-orange focus:outline-none"
               type="number"
-              placeholder="20"
-              min="4"
-              max="100"
-              value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
+              placeholder="10"
+              min="2"
+              max="50"
+              value={maleCapacity}
+              onChange={(e) => setMaleCapacity(e.target.value)}
               required
             />
           </div>
 
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
+              Female Capacity *
+            </label>
+            <input
+              className="w-full p-3 border-2 border-gray-300 rounded bg-white focus:border-orange focus:outline-none"
+              type="number"
+              placeholder="10"
+              min="2"
+              max="50"
+              value={femaleCapacity}
+              onChange={(e) => setFemaleCapacity(e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
               Min Age *
@@ -194,7 +232,7 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
 
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2 text-left">
-              Max Age *
+              Max Age (optional)
             </label>
             <input
               className="w-full p-3 border-2 border-gray-300 rounded bg-white focus:border-orange focus:outline-none"
@@ -204,7 +242,6 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
               max="100"
               value={ageRangeMax}
               onChange={(e) => setAgeRangeMax(e.target.value)}
-              required
             />
           </div>
         </div>

@@ -6,7 +6,6 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Event from "../components/Event";
 import Loading from "../components/Loading";
-import Button from "../components/Button";
 import type { SpeedDatingEvent } from "../types/event";
 
 interface UserProfile {
@@ -78,37 +77,25 @@ export default function UserDashboard() {
       <main className="flex-grow p-4 sm:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Welcome Text */}
-          <h2 className="text-2xl font-bold text-navy text-left animate-fade-in">Welcome, {userProfile?.name || 'Guest'}!</h2>
+          <h2 className="text-2xl font-bold text-navy text-center animate-fade-in">Welcome, {userProfile?.name || 'Guest'}!</h2>
 
           {/* Upcoming Events Section */}
-          <div className="bg-white border-4 border-teal p-6 sm:p-8 rounded-lg shadow-lg animate-slide-up">
-            <h3 className="text-xl font-bold text-navy mb-6">Upcoming Events</h3>
-            {upcomingEvents.length > 0 ? (
-              <div className="space-y-6">
-                {upcomingEvents.map((event) => (
-                  <Event 
-                    key={event.id} 
-                    event={event} 
-                    variant="upcoming"
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-cream p-6 rounded-lg text-center">
-                <p className="text-gray-600">No upcoming events scheduled yet.</p>
-                <p className="text-gray-500 text-sm mt-2">Check back soon for new speed dating events!</p>
-              </div>
-            )}
-          </div>
-
-          {/* Matches Section */}
-          <div className="bg-white border-4 border-gold p-6 sm:p-8 rounded-lg shadow-lg animate-slide-up">
-            <h3 className="text-xl font-bold text-navy mb-4">Your Matches</h3>
-            <div className="bg-cream p-6 rounded-lg text-center">
-              <p className="text-gray-600">No matches yet.</p>
-              <p className="text-gray-500 text-sm mt-2">Participate in events to find your matches!</p>
+          <h3 className="text-2xl text-left font-bold text-navy mb-6">Upcoming Events</h3>
+          {upcomingEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {upcomingEvents.map((event) => (
+                <Event 
+                  key={event.id} 
+                  event={event} 
+                />
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="bg-white border-4 border-teal p-6 rounded-lg text-center">
+              <p className="text-gray-600">No upcoming events scheduled yet.</p>
+              <p className="text-gray-500 text-sm mt-2">Check back soon for new speed dating events!</p>
+            </div>
+          )}
 
         </div>
       </main>

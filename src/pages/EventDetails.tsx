@@ -8,15 +8,9 @@ import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
 import { calculateAge } from "../utils/dateUtils";
+import { Calendar, Clock, Users, AlertCircle, CheckCircle } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
-
-interface EventRegistration {
-  id?: string;
-  eventId: string;
-  userId: string;
-  registeredAt: string;
-  status: 'registered' | 'cancelled';
-}
+import type { EventRegistration } from "../types/registration";
 
 export default function EventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -25,7 +19,8 @@ export default function EventDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isRegistered, setIsRegistered] = useState(false);
-  const [registrationCount, setRegistrationCount] = useState(0);
+  const [maleRegistrationCount, setMaleRegistrationCount] = useState(0);
+  const [femaleRegistrationCount, setFemaleRegistrationCount] = useState(0);
   const [registering, setRegistering] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -90,14 +85,33 @@ export default function EventDetails() {
         setUserRegistrationId(userRegistration.docs[0].id);
       }
 
-      // Get total registration count
+      // Get registration counts by gender
       const allRegistrationsQuery = query(
         collection(db, "registrations"),
         where("eventId", "==", eventId),
         where("status", "==", "registered")
       );
       const allRegistrations = await getDocs(allRegistrationsQuery);
-      setRegistrationCount(allRegistrations.size);
+      
+      // Count registrations by gender
+      let maleCount = 0;
+      let femaleCount = 0;
+      
+      for (const registration of allRegistrations.docs) {
+        const userId = registration.data().userId;
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.gender === 'male') {
+            maleCount++;
+          } else if (userData.gender === 'female') {
+            femaleCount++;
+          }
+        }
+      }
+      
+      setMaleRegistrationCount(maleCount);
+      setFemaleRegistrationCount(femaleCount);
 
     } catch (err) {
       console.error("Error fetching event data:", err);
@@ -112,9 +126,13 @@ export default function EventDetails() {
 
     setRegistering(true);
     try {
-      // Check if event is full
-      if (registrationCount >= event.maxParticipants) {
-        alert("Sorry, this event is full!");
+      // Check if event is full based on user's gender
+      const userGender = userProfile.gender;
+      const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
+      const currentCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
+      
+      if (currentCount >= capacity) {
+        alert("Sorry, this event is full for your gender group!");
         return;
       }
 
@@ -126,13 +144,14 @@ export default function EventDetails() {
 
       // Check age requirements
       const age = calculateAge(userProfile.birthday);
-      if (age < event.ageRangeMin || age > event.ageRangeMax) {
-        alert(`This event is for ages ${event.ageRangeMin}-${event.ageRangeMax}. You do not meet the age requirements.`);
+      if (age < event.ageRangeMin || (event.ageRangeMax && age > event.ageRangeMax)) {
+        const ageRangeText = event.ageRangeMax ? `${event.ageRangeMin}-${event.ageRangeMax}` : `${event.ageRangeMin}+`;
+        alert(`This event is for ages ${ageRangeText}. You do not meet the age requirements.`);
         return;
       }
 
       // Create registration
-      const registrationData: EventRegistration = {
+      const registrationData: Omit<EventRegistration, 'id'> = {
         eventId: eventId!,
         userId: currentUserId,
         registeredAt: new Date().toISOString(),
@@ -142,7 +161,11 @@ export default function EventDetails() {
       await addDoc(collection(db, "registrations"), registrationData);
       
       setIsRegistered(true);
-      setRegistrationCount(prev => prev + 1);
+      if (userProfile.gender === 'male') {
+        setMaleRegistrationCount(prev => prev + 1);
+      } else {
+        setFemaleRegistrationCount(prev => prev + 1);
+      }
       alert("Successfully registered for the event!");
       
     } catch (err) {
@@ -176,7 +199,11 @@ export default function EventDetails() {
         await deleteDoc(doc(db, "registrations", registrationDoc.id));
         
         setIsRegistered(false);
-        setRegistrationCount(prev => prev - 1);
+        if (userProfile && userProfile.gender === 'male') {
+          setMaleRegistrationCount(prev => prev - 1);
+        } else if (userProfile) {
+          setFemaleRegistrationCount(prev => prev - 1);
+        }
         alert("Your registration has been cancelled.");
       }
       
@@ -231,9 +258,12 @@ export default function EventDetails() {
   const isCancelled = event.status === 'cancelled';
   const isCompleted = event.status === 'completed';
   const isRegistrationClosed = new Date(event.registrationDeadline) < new Date();
-  const isFull = registrationCount >= event.maxParticipants;
+  const userGender = userProfile?.gender;
+  const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
+  const currentGenderCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
+  const isFull = currentGenderCount >= capacity;
   const userAge = userProfile ? calculateAge(userProfile.birthday) : 0;
-  const meetsAgeRequirement = userProfile && userAge >= event.ageRangeMin && userAge <= event.ageRangeMax;
+  const meetsAgeRequirement = userProfile && userAge >= event.ageRangeMin && (!event.ageRangeMax || userAge <= event.ageRangeMax);
   const canRegister = !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && !isRegistered && meetsAgeRequirement;
 
   // Check if check-in button should be shown (for registered users)
@@ -277,22 +307,19 @@ export default function EventDetails() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      <Header 
-        showBackButton={true}
-        backButtonText="Back to Dashboard"
-        backButtonPath="/"
-      />
+      <Header />
 
       {/* Main Content */}
       <main className="flex-grow p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Event Info */}
-          <div className="bg-white border-4 border-navy p-6 sm:p-8 rounded-lg shadow-lg mb-8 animate-fade-in">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Event Details Card */}
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
+            {/* Title and Status */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
-              <div className="flex-1">
-                <h1 className="text-2xl sm:text-3xl font-bold text-navy mb-2 text-left">{event.title}</h1>
+              <div>
+                <h1 className="text-2xl sm:text-3xl text-left font-bold text-navy mb-2">{event.title}</h1>
                 {event.description && (
-                  <p className="text-gray-700 text-lg text-left">{event.description}</p>
+                  <p className="text-gray-700 text-lg">{event.description}</p>
                 )}
               </div>
               <div className={`px-4 py-2 rounded-lg font-semibold ${eventStatus.class} whitespace-nowrap`}>
@@ -300,155 +327,183 @@ export default function EventDetails() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Date</p>
-                <p className="font-semibold text-navy">{(() => {
-                  // Parse the date string and add timezone offset to avoid day shifting
-                  const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-                  const date = new Date(year, month - 1, day); // month is 0-indexed
-                  return date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  });
-                })()}</p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Time</p>
-                <p className="font-semibold text-navy">{formatTime(event.startTime)}</p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Spots Available</p>
-                <p className="font-semibold text-navy">
-                  {Math.max(0, event.maxParticipants - registrationCount)} / {event.maxParticipants}
-                </p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Age Range</p>
-                <p className="font-semibold text-navy">{event.ageRangeMin} - {event.ageRangeMax} years</p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Registration Deadline</p>
-                <p className="font-semibold text-navy">{(() => {
-                  // Parse the date string and add timezone offset to avoid day shifting
-                  const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
-                  const date = new Date(year, month - 1, day); // month is 0-indexed
-                  return date.toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  });
-                })()}</p>
-              </div>
-              <div className="bg-cream p-4 rounded-lg">
-                <p className="text-gray-600 text-sm">Your Status</p>
-                <p className={`font-semibold ${isRegistered ? 'text-green-600' : 'text-gray-600'}`}>
-                  {isRegistered ? '✓ Registered' : 'Not Registered'}
-                </p>
-              </div>
-            </div>
-
-            {/* Registration Actions */}
-            <div className="flex justify-center gap-4">
-              {isRegistered ? (
-                <>
-                  <Button
-                    variant="danger"
-                    size="lg"
-                    onClick={handleCancelRegistration}
-                    disabled={registering || isPastEvent}
-                    loading={registering}
-                  >
-                    Cancel Registration
-                  </Button>
-                  {showCheckInButton && (
-                    <Button
-                      variant="success"
-                      size="lg"
-                      onClick={handleCheckIn}
-                      disabled={!canCheckIn || checkingIn}
-                      loading={checkingIn}
-                      glow={canCheckIn}
-                    >
-                      Check In
-                    </Button>
-                  )}
-                </>
-              ) : !isPastEvent && !isCancelled ? (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={canRegister ? handleRegister : undefined}
-                  disabled={!canRegister || registering}
-                  loading={registering}
-                  glow={canRegister}
-                >
-                  Register for Event
-                </Button>
-              ) : null}
-            </div>
-
-            {/* Status Messages */}
-            {!canRegister && !isRegistered && (
-              <div className="mt-4 text-center">
-                {isPastEvent && <p className="text-gray-600">This event has already taken place.</p>}
-                {isCancelled && <p className="text-red-600">This event has been cancelled.</p>}
-                {isRegistrationClosed && !isPastEvent && !isCancelled && (
-                  <p className="text-orange-600">Registration deadline has passed.</p>
-                )}
-                {isFull && !isRegistrationClosed && !isPastEvent && !isCancelled && (
-                  <p className="text-orange-600">This event is currently full.</p>
-                )}
-                {!meetsAgeRequirement && !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && (
-                  <p className="text-orange-600">
-                    You must be between {event.ageRangeMin} and {event.ageRangeMax} years old to register for this event.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Event Details Section */}
-          <div className="bg-white border-4 border-teal p-6 sm:p-8 rounded-lg shadow-lg animate-slide-up">
-            <h2 className="text-xl font-bold text-navy mb-4">Event Information</h2>
-            <div className="space-y-4 text-gray-700">
-              <div>
-                <h3 className="font-semibold text-navy mb-2">What to Expect</h3>
-                <p>Join us for an exciting speed dating event where you'll have the opportunity to meet {event.maxParticipants - 1} other singles in a fun, structured environment. Each mini-date lasts just a few minutes, giving you the perfect amount of time to make a great first impression!</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-navy mb-2">How It Works</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Check in at the event and receive your dating card</li>
-                  <li>Participate in quick 3-5 minute dates with other attendees</li>
-                  <li>Mark your dating card with who you'd like to see again</li>
-                  <li>We'll notify you of mutual matches within 24 hours</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-navy mb-2">Important Notes</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Please arrive 10 minutes before the start time</li>
-                  <li>Age range for this event: {event.ageRangeMin} - {event.ageRangeMax} years</li>
-                  <li>Registration closes on {(() => {
-                    // Parse the date string and add timezone offset to avoid day shifting
-                    const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
-                    const date = new Date(year, month - 1, day); // month is 0-indexed
+            <div className="space-y-4">
+              {/* Date */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Calendar className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Date: </span>
+                  <span>{(() => {
+                    const [year, month, day] = event.date.split('-').map(num => parseInt(num));
+                    const date = new Date(year, month - 1, day);
                     return date.toLocaleDateString('en-US', { 
                       weekday: 'long', 
                       year: 'numeric', 
                       month: 'long', 
                       day: 'numeric' 
                     });
-                  })()}</li>
-                  <li>Limited to {event.maxParticipants} participants</li>
-                </ul>
+                  })()}</span>
+                </div>
               </div>
+
+              {/* Time */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Clock className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Time: </span>
+                  <span>{formatTime(event.startTime)}</span>
+                </div>
+              </div>
+
+              {/* Age Range */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Age Range: </span>
+                  <span>{event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'} years</span>
+                </div>
+              </div>
+
+              {/* Spots Available */}
+              <div className="flex items-center text-sm text-gray-700">
+                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Spots Available: </span>
+                  <span>
+                    {userProfile?.gender === 'male' 
+                      ? `${Math.max(0, event.maleCapacity - maleRegistrationCount)} / ${event.maleCapacity} (Male)`
+                      : `${Math.max(0, event.femaleCapacity - femaleRegistrationCount)} / ${event.femaleCapacity} (Female)`
+                    }
+                  </span>
+                </div>
+              </div>
+
+              {/* Registration Deadline */}
+              <div className="flex items-center text-sm text-gray-700">
+                <AlertCircle className="w-5 h-5 mr-3 text-gray-500" />
+                <div>
+                  <span className="font-semibold">Registration Deadline: </span>
+                  <span>{(() => {
+                    const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    });
+                  })()}</span>
+                </div>
+              </div>
+
+              {/* Your Status */}
+              <div className="flex items-center text-sm text-gray-700">
+                <CheckCircle className={`w-5 h-5 mr-3 ${isRegistered ? 'text-green-500' : 'text-gray-400'}`} />
+                <div>
+                  <span className="font-semibold">Your Status: </span>
+                  <span className={isRegistered ? 'text-green-600 font-semibold' : 'text-gray-600'}>
+                    {isRegistered ? 'Registered' : 'Not Registered'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Registration Actions */}
+          <div className="flex justify-center gap-4">
+            {isRegistered ? (
+              <>
+                <Button
+                  variant="danger"
+                  size="lg"
+                  onClick={handleCancelRegistration}
+                  disabled={registering || isPastEvent}
+                  loading={registering}
+                >
+                  Cancel Registration
+                </Button>
+                {showCheckInButton && (
+                  <Button
+                    variant="success"
+                    size="lg"
+                    onClick={handleCheckIn}
+                    disabled={!canCheckIn || checkingIn}
+                    loading={checkingIn}
+                    glow={canCheckIn}
+                  >
+                    Check In
+                  </Button>
+                )}
+              </>
+            ) : !isPastEvent && !isCancelled ? (
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={canRegister ? handleRegister : undefined}
+                disabled={!canRegister || registering}
+                loading={registering}
+                glow={canRegister}
+              >
+                Register for Event
+              </Button>
+            ) : null}
+          </div>
+
+          {/* Status Messages */}
+          {!canRegister && !isRegistered && (
+            <div className="text-center">
+              {isPastEvent && <p className="text-gray-600">This event has already taken place.</p>}
+              {isCancelled && <p className="text-red-600">This event has been cancelled.</p>}
+              {isRegistrationClosed && !isPastEvent && !isCancelled && (
+                <p className="text-orange-600">Registration deadline has passed.</p>
+              )}
+              {isFull && !isRegistrationClosed && !isPastEvent && !isCancelled && (
+                <p className="text-orange-600">This event is currently full.</p>
+              )}
+              {!meetsAgeRequirement && !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && (
+                <p className="text-orange-600">
+                  You must be {event.ageRangeMax ? `between ${event.ageRangeMin} and ${event.ageRangeMax}` : `${event.ageRangeMin} or older`} years old to register for this event.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Event Information */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-navy text-left">Event Information</h2>
+            
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h3 className="font-semibold text-navy mb-3 text-xl">What to Expect</h3>
+              <p className="text-gray-700 leading-relaxed">Join us for an exciting speed dating event where you'll have the opportunity to meet other singles in a fun, structured environment. Each mini-date lasts just a few minutes, giving you the perfect amount of time to make a great first impression!</p>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h3 className="font-semibold text-navy mb-3 text-xl">How It Works</h3>
+              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                <li>Check in at the event and receive your dating card</li>
+                <li>Participate in quick 3-5 minute dates with other attendees</li>
+                <li>Mark your dating card with who you'd like to see again</li>
+                <li>We'll notify you of mutual matches within 24 hours</li>
+              </ul>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+              <h3 className="font-semibold text-navy mb-3 text-xl">Important Notes</h3>
+              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700">
+                <li>Please arrive 10 minutes before the start time</li>
+                <li>Age range for this event: {event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'} years</li>
+                <li>Registration closes on {(() => {
+                  const [year, month, day] = event.registrationDeadline.split('-').map(num => parseInt(num));
+                  const date = new Date(year, month - 1, day);
+                  return date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  });
+                })()}</li>
+                <li>Limited to {event.maleCapacity} males and {event.femaleCapacity} females</li>
+              </ul>
             </div>
           </div>
         </div>
