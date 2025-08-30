@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "../firebase";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Event from "../components/Event";
 import CreateEventForm from "../components/CreateEventForm";
 import type { SpeedDatingEvent } from "../types/event";
+import { getUpcomingAndPastEvents } from "../firebase/event";
 
 export default function AdminDashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState<SpeedDatingEvent[]>([]);
@@ -14,26 +13,7 @@ export default function AdminDashboard() {
 
   const fetchEvents = async () => {
     try {
-      // Fetch events
-      const eventsSnapshot = await getDocs(collection(db, "events"));
-      const eventsData = eventsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SpeedDatingEvent[];
-      
-      // Separate upcoming and past events
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // Set to beginning of today for accurate comparison
-      
-      const upcoming = eventsData.filter(event => {
-        const eventDate = new Date(event.date);
-        eventDate.setHours(0, 0, 0, 0); // Normalize to beginning of day
-        return eventDate >= now;
-      });
-      
-      const past = eventsData.filter(event => {
-        const eventDate = new Date(event.date);
-        eventDate.setHours(0, 0, 0, 0); // Normalize to beginning of day
-        return eventDate < now;
-      });
-      
+      const { upcoming, past } = await getUpcomingAndPastEvents();
       setUpcomingEvents(upcoming);
       setPastEvents(past);
     } catch (error) {

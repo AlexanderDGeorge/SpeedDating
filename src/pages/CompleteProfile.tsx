@@ -1,12 +1,11 @@
 import { useState, type FormEvent, useEffect } from "react";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/Button";
 import { getMaxBirthdayDate, getMinBirthdayDate } from "../utils/dateUtils";
+import { useAuth } from "../contexts/AuthContext";
+import { createUser } from "../firebase/user";
 
 export default function CompleteProfile() {
   const [name, setName] = useState("");
@@ -19,36 +18,32 @@ export default function CompleteProfile() {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
+  const { currentUser, userProfile, isAdmin } = useAuth();
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
 
-      // Check if profile already exists
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.isAdmin) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
-        return;
+    // Check if profile already exists
+    if (userProfile) {
+      if (isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/");
       }
+      return;
+    }
 
-      // Set email from auth
-      setEmail(user.email || "");
-      
-      // If Google user, we might have their name
-      if (user.displayName) {
-        setName(user.displayName);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    // Set email from auth
+    setEmail(currentUser.email || "");
+    
+    // If Google user, we might have their name
+    if (currentUser.displayName) {
+      setName(currentUser.displayName);
+    }
+  }, [currentUser, userProfile, isAdmin, navigate]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,8 +51,7 @@ export default function CompleteProfile() {
     setLoading(true);
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!currentUser) {
         navigate("/auth");
         return;
       }
@@ -98,16 +92,16 @@ export default function CompleteProfile() {
       }
 
       // Save user profile to Firestore using auth UID as document ID
-      await setDoc(doc(db, "users", user.uid), {
+      await createUser(currentUser.uid, {
         name: name.trim(),
-        email: user.email,
+        email: currentUser.email || '',
         gender: gender,
         interestedIn: interestedIn,
         birthday: birthday,
         bio: bio.trim(),
         createdAt: new Date().toISOString(),
         isAdmin: false,
-        authProvider: user.providerData[0]?.providerId || "email"
+        authProvider: currentUser.providerData[0]?.providerId || "email"
       });
 
       navigate("/");

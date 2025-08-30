@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { doc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import { updateEvent } from "../firebase/event";
 import Button from "./Button";
 import type { SpeedDatingEvent } from "../types/event";
 
@@ -101,7 +101,7 @@ export default function EditEventForm({ event, onEventUpdated, onCancel }: EditE
       }
 
       // Update in Firestore
-      await updateDoc(doc(db, "events", event.id), eventData);
+      await updateEvent(event.id, eventData);
 
       // Notify parent component
       onEventUpdated();

@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, collection, getDocs, updateDoc, query, where } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditEventForm from "../components/EditEventForm";
@@ -10,6 +8,10 @@ import { calculateAge } from "../utils/dateUtils";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import type { User } from "../types";
+import { fetchEventById, cancelEvent } from "../firebase/event";
+import { fetchEventRegistrations } from "../firebase/registration";
+import { fetchAllUsers } from "../firebase/user";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function AdminEvent() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -22,25 +24,22 @@ export default function AdminEvent() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  const { currentUser, isAdmin } = useAuth();
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
 
-      // Check if user is admin
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists() || !userDoc.data().isAdmin) {
-        navigate("/");
-        return;
-      }
+    // Check if user is admin
+    if (!isAdmin) {
+      navigate("/");
+      return;
+    }
 
-      await fetchEventData();
-    });
-
-    return () => unsubscribe();
-  }, [eventId, navigate]);
+    fetchEventData();
+  }, [currentUser, isAdmin, eventId, navigate]);
 
   const fetchEventData = async () => {
     if (!eventId) {
@@ -51,36 +50,21 @@ export default function AdminEvent() {
 
     try {
       // Fetch event details
-      const eventDoc = await getDoc(doc(db, "events", eventId));
-      if (!eventDoc.exists()) {
+      const eventData = await fetchEventById(eventId);
+      if (!eventData) {
         setError("Event not found");
         setLoading(false);
         return;
       }
-
-      const eventData = { id: eventDoc.id, ...eventDoc.data() } as SpeedDatingEvent;
       setEvent(eventData);
 
       // Fetch real registrations for this event
-      const registrationsQuery = query(
-        collection(db, "registrations"),
-        where("eventId", "==", eventId)
-      );
-      const registrationsSnapshot = await getDocs(registrationsQuery);
-      const registrationsData = registrationsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as EventRegistration[];
-
+      const registrationsData = await fetchEventRegistrations(eventId);
       setRegistrations(registrationsData);
       
       // Get user data for registered users
       if (registrationsData.length > 0) {
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        const allUsersData = usersSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter((user: any) => !user.isAdmin) as User[];
-        
+        const allUsersData = await fetchAllUsers();
         const registeredUserData = allUsersData.filter(user => 
           registrationsData.some(reg => reg.userId === user.id)
         );
@@ -125,11 +109,7 @@ export default function AdminEvent() {
     
     setCancelLoading(true);
     try {
-      await updateDoc(doc(db, "events", eventId), {
-        status: 'cancelled',
-        cancelledAt: new Date().toISOString(),
-        cancelledBy: auth.currentUser?.uid
-      });
+      await cancelEvent(eventId, auth.currentUser?.uid || '');
       
       // Refresh event data
       await fetchEventData();
@@ -186,11 +166,7 @@ export default function AdminEvent() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      <Header 
-        showBackButton={true}
-        backButtonText="Back to Admin Dashboard"
-        backButtonPath="/admin"
-      />
+      <Header/>
 
       {/* Main Content */}
       <main className="flex-grow p-8">

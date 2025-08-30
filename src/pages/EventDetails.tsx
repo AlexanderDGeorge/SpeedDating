@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { doc, getDoc, addDoc, collection, query, where, getDocs, deleteDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Loading from "../components/Loading";
@@ -11,6 +8,9 @@ import { calculateAge } from "../utils/dateUtils";
 import { Calendar, Clock, Users, AlertCircle, CheckCircle } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
+import { fetchEventById } from "../firebase/event";
+import { fetchUserRegistration, fetchEventRegistrationsByGender, createRegistration, cancelRegistration, checkInUser } from "../firebase/registration";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function EventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -23,35 +23,24 @@ export default function EventDetails() {
   const [femaleRegistrationCount, setFemaleRegistrationCount] = useState(0);
   const [registering, setRegistering] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userRegistrationId, setUserRegistrationId] = useState<string | null>(null);
 
+  const { currentUser, userProfile, isAdmin } = useAuth();
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
 
-      setCurrentUserId(user.uid);
+    // Check if user is admin (admins should use the admin event page)
+    if (isAdmin) {
+      navigate(`/admin/event/${eventId}`);
+      return;
+    }
 
-      // Check if user is admin (admins should use the admin event page)
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.isAdmin) {
-          navigate(`/admin/event/${eventId}`);
-          return;
-        }
-        setUserProfile(userData);
-      }
-
-      await fetchEventData(user.uid);
-    });
-
-    return () => unsubscribe();
-  }, [eventId, navigate]);
+    fetchEventData(currentUser.uid);
+  }, [currentUser, isAdmin, eventId, navigate]);
 
   const fetchEventData = async (userId: string) => {
     if (!eventId) {
@@ -62,54 +51,23 @@ export default function EventDetails() {
 
     try {
       // Fetch event details
-      const eventDoc = await getDoc(doc(db, "events", eventId));
-      if (!eventDoc.exists()) {
+      const eventData = await fetchEventById(eventId);
+      if (!eventData) {
         setError("Event not found");
         setLoading(false);
         return;
       }
-
-      const eventData = { id: eventDoc.id, ...eventDoc.data() } as SpeedDatingEvent;
       setEvent(eventData);
 
       // Check if user is registered for this event
-      const registrationsQuery = query(
-        collection(db, "registrations"),
-        where("eventId", "==", eventId),
-        where("userId", "==", userId),
-        where("status", "==", "registered")
-      );
-      const userRegistration = await getDocs(registrationsQuery);
-      setIsRegistered(!userRegistration.empty);
-      if (!userRegistration.empty) {
-        setUserRegistrationId(userRegistration.docs[0].id);
+      const { isRegistered: registered, registrationId } = await fetchUserRegistration(eventId, userId);
+      setIsRegistered(registered);
+      if (registrationId) {
+        setUserRegistrationId(registrationId);
       }
 
       // Get registration counts by gender
-      const allRegistrationsQuery = query(
-        collection(db, "registrations"),
-        where("eventId", "==", eventId),
-        where("status", "==", "registered")
-      );
-      const allRegistrations = await getDocs(allRegistrationsQuery);
-      
-      // Count registrations by gender
-      let maleCount = 0;
-      let femaleCount = 0;
-      
-      for (const registration of allRegistrations.docs) {
-        const userId = registration.data().userId;
-        const userDoc = await getDoc(doc(db, "users", userId));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.gender === 'male') {
-            maleCount++;
-          } else if (userData.gender === 'female') {
-            femaleCount++;
-          }
-        }
-      }
-      
+      const { maleCount, femaleCount } = await fetchEventRegistrationsByGender(eventId);
       setMaleRegistrationCount(maleCount);
       setFemaleRegistrationCount(femaleCount);
 
@@ -122,12 +80,12 @@ export default function EventDetails() {
   };
 
   const handleRegister = async () => {
-    if (!event || !currentUserId || !userProfile) return;
+    if (!event || !currentUser || !userProfile) return;
 
     setRegistering(true);
     try {
       // Check if event is full based on user's gender
-      const userGender = userProfile.gender;
+      const userGender = userProfile?.gender;
       const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
       const currentCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
       
@@ -143,25 +101,27 @@ export default function EventDetails() {
       }
 
       // Check age requirements
-      const age = calculateAge(userProfile.birthday);
-      if (age < event.ageRangeMin || (event.ageRangeMax && age > event.ageRangeMax)) {
-        const ageRangeText = event.ageRangeMax ? `${event.ageRangeMin}-${event.ageRangeMax}` : `${event.ageRangeMin}+`;
-        alert(`This event is for ages ${ageRangeText}. You do not meet the age requirements.`);
-        return;
+      if (userProfile?.birthday) {
+        const age = calculateAge(userProfile.birthday);
+        if (age < event.ageRangeMin || (event.ageRangeMax && age > event.ageRangeMax)) {
+          const ageRangeText = event.ageRangeMax ? `${event.ageRangeMin}-${event.ageRangeMax}` : `${event.ageRangeMin}+`;
+          alert(`This event is for ages ${ageRangeText}. You do not meet the age requirements.`);
+          return;
+        }
       }
 
       // Create registration
       const registrationData: Omit<EventRegistration, 'id'> = {
         eventId: eventId!,
-        userId: currentUserId,
+        userId: currentUser.uid,
         registeredAt: new Date().toISOString(),
         status: 'registered'
       };
 
-      await addDoc(collection(db, "registrations"), registrationData);
+      await createRegistration(registrationData);
       
       setIsRegistered(true);
-      if (userProfile.gender === 'male') {
+      if (userProfile?.gender === 'male') {
         setMaleRegistrationCount(prev => prev + 1);
       } else {
         setFemaleRegistrationCount(prev => prev + 1);
@@ -177,35 +137,21 @@ export default function EventDetails() {
   };
 
   const handleCancelRegistration = async () => {
-    if (!eventId || !currentUserId) return;
+    if (!eventId || !currentUser) return;
 
     if (!confirm("Are you sure you want to cancel your registration?")) return;
 
     setRegistering(true);
     try {
-      // Find and delete the user's registration
-      const registrationsQuery = query(
-        collection(db, "registrations"),
-        where("eventId", "==", eventId),
-        where("userId", "==", currentUserId),
-        where("status", "==", "registered")
-      );
+      await cancelRegistration(eventId, currentUser.uid);
       
-      const userRegistration = await getDocs(registrationsQuery);
-      
-      if (!userRegistration.empty) {
-        // Update registration status to cancelled instead of deleting
-        const registrationDoc = userRegistration.docs[0];
-        await deleteDoc(doc(db, "registrations", registrationDoc.id));
-        
-        setIsRegistered(false);
-        if (userProfile && userProfile.gender === 'male') {
-          setMaleRegistrationCount(prev => prev - 1);
-        } else if (userProfile) {
-          setFemaleRegistrationCount(prev => prev - 1);
-        }
-        alert("Your registration has been cancelled.");
+      setIsRegistered(false);
+      if (userProfile?.gender === 'male') {
+        setMaleRegistrationCount(prev => prev - 1);
+      } else if (userProfile) {
+        setFemaleRegistrationCount(prev => prev - 1);
       }
+      alert("Your registration has been cancelled.");
       
     } catch (err) {
       console.error("Error cancelling registration:", err);
@@ -220,9 +166,7 @@ export default function EventDetails() {
 
     setCheckingIn(true);
     try {
-      await updateDoc(doc(db, "registrations", userRegistrationId), {
-        status: 'checked-in'
-      });
+      await checkInUser(userRegistrationId);
       
       alert("Successfully checked in for the event!");
       
@@ -262,7 +206,7 @@ export default function EventDetails() {
   const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
   const currentGenderCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
   const isFull = currentGenderCount >= capacity;
-  const userAge = userProfile ? calculateAge(userProfile.birthday) : 0;
+  const userAge = userProfile?.birthday ? calculateAge(userProfile.birthday) : 0;
   const meetsAgeRequirement = userProfile && userAge >= event.ageRangeMin && (!event.ageRangeMax || userAge <= event.ageRangeMax);
   const canRegister = !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && !isRegistered && meetsAgeRequirement;
 

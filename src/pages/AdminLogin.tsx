@@ -1,7 +1,6 @@
 
 import { useState, type FormEvent } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { signInAsAdmin } from "../firebase/auth";
 
 export default function AdminLogin({ onLogin } : { onLogin: Function }) {
   const [email, setEmail] = useState("");
@@ -11,10 +10,10 @@ export default function AdminLogin({ onLogin } : { onLogin: Function }) {
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInAsAdmin(email, password);
       onLogin(); // navigate to dashboard
-    } catch (err) {
-      setError("Invalid credentials");
+    } catch (err: any) {
+      setError(err.message || "Invalid credentials");
     }
   };
 
