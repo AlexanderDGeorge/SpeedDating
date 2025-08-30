@@ -1,10 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { handleEmailAuth, handleGoogleAuth } from "../firebase/auth";
 
 export default function UserAuth() {
   const [isSignUp, setIsSignUp] = useState(true);
@@ -13,7 +11,6 @@ export default function UserAuth() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const googleProvider = new GoogleAuthProvider();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -21,67 +18,22 @@ export default function UserAuth() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        // Create user account
-        await createUserWithEmailAndPassword(auth, email, password);
-        // Redirect to profile completion
+      const result = await handleEmailAuth(email, password, isSignUp);
+      
+      if (result.needsProfileCompletion) {
         navigate("/complete-profile");
+      } else if (result.isAdmin) {
+        navigate("/admin");
       } else {
-        // Sign in existing user
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        
-        // Check if user profile exists
-        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-        
-        if (!userDoc.exists()) {
-          // If profile doesn't exist, user needs to complete registration
-          navigate("/complete-profile");
-        } else {
-          const userData = userDoc.data();
-          if (userData.isAdmin) {
-            navigate("/admin");
-          } else {
-            navigate("/");
-          }
-        }
+        navigate("/");
       }
     } catch (err: any) {
-      if (err.code === 'auth/email-already-in-use' && isSignUp) {
-        // User tried to sign up with existing email, attempt to sign in instead
-        try {
-          const userCredential = await signInWithEmailAndPassword(auth, email, password);
-          
-          // Check if user profile exists
-          const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-          
-          if (!userDoc.exists()) {
-            navigate("/complete-profile");
-          } else {
-            const userData = userDoc.data();
-            if (userData.isAdmin) {
-              navigate("/admin");
-            } else {
-              navigate("/");
-            }
-          }
-        } catch (signInErr: any) {
-          if (signInErr.code === 'auth/wrong-password') {
-            setError("Account exists with this email but password is incorrect. Please use the correct password or reset it.");
-            setIsSignUp(false);
-          } else {
-            setError("Account exists with this email. Please sign in instead.");
-            setIsSignUp(false);
-          }
-        }
-      } else if (err.code === 'auth/user-not-found') {
-        setError("No account found. Please sign up.");
+      setError(err.message);
+      // Handle specific error cases for UI updates
+      if (err.message.includes("No account found")) {
         setIsSignUp(true);
-      } else if (err.code === 'auth/wrong-password') {
-        setError("Incorrect password");
-      } else if (err.code === 'auth/weak-password') {
-        setError("Password should be at least 6 characters");
-      } else {
-        setError("An error occurred. Please try again.");
+      } else if (err.message.includes("Account exists")) {
+        setIsSignUp(false);
       }
     } finally {
       setLoading(false);
@@ -93,26 +45,18 @@ export default function UserAuth() {
     setLoading(true);
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-
-      // Check if user profile exists
-      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const result = await handleGoogleAuth();
       
-      if (!userDoc.exists()) {
-        // New Google user needs to complete profile
+      if (result.needsProfileCompletion) {
         navigate("/complete-profile");
+      } else if (result.isAdmin) {
+        navigate("/admin");
       } else {
-        // Existing user, check if admin
-        const userData = userDoc.data();
-        if (userData.isAdmin) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        navigate("/");
       }
     } catch (err: any) {
-      setError("Failed to sign in with Google. Please try again.");
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
   };

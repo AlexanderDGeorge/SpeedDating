@@ -1,19 +1,11 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Button from "../components/Button";
+import { useAuth } from "../contexts/AuthContext";
+import { updateUser } from "../firebase/user";
 
-interface UserProfile {
-  name: string;
-  email: string;
-  gender: string;
-  bio?: string;
-  createdAt: string;
-}
 
 export default function EditProfile() {
   const [gender, setGender] = useState("");
@@ -25,37 +17,26 @@ export default function EditProfile() {
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
 
+  const { currentUser, userProfile } = useAuth();
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
 
-      try {
-        // Fetch current user profile
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        
-        if (!userDoc.exists()) {
-          navigate("/complete-profile");
-          return;
-        }
+    if (!userProfile) {
+      navigate("/complete-profile");
+      return;
+    }
 
-        const userData = userDoc.data() as UserProfile;
-        setName(userData.name);
-        setEmail(userData.email);
-        setGender(userData.gender);
-        setBio(userData.bio || "");
-      } catch (error) {
-        console.error("Error fetching user profile:", error);
-        setError("Failed to load profile data");
-      } finally {
-        setInitialLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    // Set form values from user profile
+    setName(userProfile.name);
+    setEmail(userProfile.email);
+    setGender(userProfile.gender);
+    setBio(userProfile.bio || "");
+    setInitialLoading(false);
+  }, [currentUser, userProfile, navigate]);
 
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -64,8 +45,7 @@ export default function EditProfile() {
     setLoading(true);
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
+      if (!currentUser) {
         navigate("/auth");
         return;
       }
@@ -85,7 +65,7 @@ export default function EditProfile() {
       }
 
       // Update user profile in Firestore
-      await updateDoc(doc(db, "users", user.uid), {
+      await updateUser(currentUser.uid, {
         name: name.trim(),
         email: email.trim(),
         gender: gender,

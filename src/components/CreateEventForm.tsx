@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { auth } from "../firebase";
+import { createEvent } from "../firebase/event";
 import Button from "./Button";
 
 interface CreateEventFormProps {
@@ -86,7 +86,7 @@ export default function CreateEventForm({ onEventCreated, onCancel }: CreateEven
       }
 
       // Save to Firestore
-      await addDoc(collection(db, "events"), eventData);
+      await createEvent(eventData);
 
       // Reset form
       setTitle("");

@@ -36,23 +36,20 @@ export default function MatchingPage() {
     { id: "partner5", name: "Taylor Brown", age: 29, gender: "male", bio: "Fitness trainer and dog lover. When I'm not at the gym, you'll find me at the park with my golden retriever." }
   ];
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        navigate("/auth");
-        return;
-      }
-      setCurrentUserId(user.uid);
-      // Initialize partners queue with mock data
-      setPartnersQueue(mockPartners);
-      setCurrentPartner(mockPartners[0]);
-    });
+  const { currentUser } = useAuth();
 
-    return () => unsubscribe();
-  }, [navigate]);
+  useEffect(() => {
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
+    // Initialize partners queue with mock data
+    setPartnersQueue(mockPartners);
+    setCurrentPartner(mockPartners[0]);
+  }, [currentUser, navigate]);
 
   const handleSubmitRating = async () => {
-    if (!rating || !currentPartner || !currentUserId) {
+    if (!rating || !currentPartner || !currentUser) {
       alert("Please select a rating before continuing");
       return;
     }
@@ -61,8 +58,8 @@ export default function MatchingPage() {
 
     try {
       // Save rating to Firestore
-      await setDoc(doc(db, "ratings", `${currentUserId}_${currentPartner.id}`), {
-        userId: currentUserId,
+      await setDoc(doc(db, "ratings", `${currentUser.uid}_${currentPartner.id}`), {
+        userId: currentUser.uid,
         partnerId: currentPartner.id,
         partnerName: currentPartner.name,
         rating: rating,

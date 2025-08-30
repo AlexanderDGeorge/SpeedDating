@@ -1,10 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { handleEmailAuth, handleGoogleAuth } from "../firebase/auth";
 
 export default function LandingPage() {
   const [email, setEmail] = useState("");
@@ -13,22 +11,19 @@ export default function LandingPage() {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const googleProvider = new GoogleAuthProvider();
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Check if user is admin
-      const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-      if (userDoc.exists() && userDoc.data().isAdmin) {
+      const result = await handleEmailAuth(email, password, false); // false for sign in
+      if (result.isAdmin) {
         navigate("/");
       } else {
         setError("Admin access required");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("Invalid credentials");
     } finally {
       setLoading(false);
@@ -39,16 +34,14 @@ export default function LandingPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // Check if user is admin
-      const userDoc = await getDoc(doc(db, "users", result.user.uid));
-      if (userDoc.exists() && userDoc.data().isAdmin) {
+      const result = await handleGoogleAuth();
+      if (result.isAdmin) {
         navigate("/");
       } else {
         setError("Admin access required. Please contact support if you need admin access.");
       }
-    } catch (err) {
-      setError("Failed to sign in with Google");
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
