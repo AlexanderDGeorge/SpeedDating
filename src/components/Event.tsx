@@ -1,64 +1,40 @@
 import { useNavigate } from "react-router-dom";
 import type { SpeedDatingEvent } from "../types/event";
+import { Calendar, Clock, Users } from "lucide-react";
 
 interface EventProps {
   event: SpeedDatingEvent;
-  variant: "upcoming" | "past";
   onClick?: () => void;
 }
 
-export default function Event({ event, variant, onClick }: EventProps) {
+export default function Event({ event, onClick }: EventProps) {
   const navigate = useNavigate();
 
-  const isUpcoming = variant === "upcoming";
+  const isPastEvent = new Date(event.date) < new Date();
   const isCancelled = event.status === 'cancelled';
+  const isCompleted = event.status === 'completed' || isPastEvent;
+  const isUpcoming = !isPastEvent && !isCancelled && !isCompleted;
   
-  const getEventStyles = () => {
+  const getStatusConfig = () => {
     if (isCancelled) {
       return {
-        container: "bg-cream border-4 border-red-400 p-8 rounded-lg hover:border-red-600 hover:shadow-xl transition-all duration-200 card-hover",
-        title: "text-2xl font-bold text-gray-700 mb-2",
-        description: "text-gray-600 text-lg mb-6"
-      };
-    } else if (isUpcoming) {
-      return {
-        container: "bg-cream border-4 border-teal p-8 rounded-lg hover:border-teal-600 hover:shadow-xl transition-all duration-200 card-hover",
-        title: "text-2xl font-bold text-navy mb-2",
-        description: "text-gray-700 text-lg mb-6"
-      };
-    } else {
-      // Completed events - green border but normal text
-      return {
-        container: "bg-cream border-4 border-green-500 p-8 rounded-lg hover:border-green-600 hover:shadow-xl transition-all duration-200 card-hover",
-        title: "text-2xl font-bold text-navy mb-2",
-        description: "text-gray-700 text-lg mb-6"
-      };
-    }
-  };
-
-  const styles = getEventStyles();
-  const containerClass = `${styles.container} cursor-pointer`;
-  
-  const getStatusDisplay = () => {
-    if (isCancelled) {
-      return {
-        class: "px-4 py-2 rounded-lg font-semibold bg-red-200 text-red-700",
+        color: 'bg-red-100 text-red-800 border-red-200',
         text: "Cancelled"
       };
     } else if (isUpcoming) {
       return {
-        class: "px-4 py-2 rounded-lg font-semibold bg-teal-100 text-teal-700",
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
         text: "Upcoming"
       };
     } else {
       return {
-        class: "px-4 py-2 rounded-lg font-semibold bg-green-200 text-green-800",
+        color: 'bg-green-100 text-green-800 border-green-200',
         text: "Completed"
       };
     }
   };
 
-  const statusDisplay = getStatusDisplay();
+  const statusConfig = getStatusConfig();
 
   // Convert 24-hour time to 12-hour format
   const formatTime = (time24: string) => {
@@ -79,43 +55,59 @@ export default function Event({ event, variant, onClick }: EventProps) {
   };
 
   return (
-    <div className={containerClass} onClick={handleClick}>
-      <div className="mb-6">
-        <div className="flex justify-between items-start mb-2">
-          <h4 className={`${styles.title} text-left`}>{event.title}</h4>
-          <div className={statusDisplay.class}>
-            {statusDisplay.text}
-          </div>
-        </div>
-        <p className={`${styles.description} text-left`}>{event.description}</p>
+    <div 
+      className="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200 cursor-pointer flex flex-col h-full"
+      onClick={handleClick}
+    >
+      {/* Status Badge */}
+      <div className="flex justify-between items-start mb-4">
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${statusConfig.color}`}>
+          {statusConfig.text}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-        <div className="bg-white p-4 rounded-lg">
-          <p className="text-gray-600 text-sm">Date</p>
-          <p className="font-semibold text-navy">{(() => {
-            // Parse the date string and add timezone offset to avoid day shifting
+      {/* Title */}
+      <h3 className="text-xl text-left font-semibold text-gray-900 mb-3">
+        {event.title}
+      </h3>
+
+      {/* Description */}
+      <p className="text-gray-600 text-left mb-4">
+        {event.description}
+      </p>
+
+      {/* Event Details */}
+      <div className="space-y-3 flex-grow">
+        {/* Date */}
+        <div className="flex items-center text-sm text-gray-700">
+          <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+          <span>{(() => {
             const [year, month, day] = event.date.split('-').map(num => parseInt(num));
-            const date = new Date(year, month - 1, day); // month is 0-indexed
+            const date = new Date(year, month - 1, day);
             return date.toLocaleDateString('en-US', { 
               weekday: 'long',
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             });
-          })()}</p>
+          })()}</span>
         </div>
-        <div className="bg-white p-4 rounded-lg">
-          <p className="text-gray-600 text-sm">Time</p>
-          <p className="font-semibold text-navy">{formatTime(event.startTime)}</p>
+
+        {/* Time */}
+        <div className="flex items-center text-sm text-gray-700">
+          <Clock className="w-4 h-4 mr-2 text-gray-500" />
+          <span>{formatTime(event.startTime)}</span>
         </div>
-        <div className="bg-white p-4 rounded-lg">
-          <p className="text-gray-600 text-sm">Age Range</p>
-          <p className="font-semibold text-navy">{event.ageRangeMin} - {event.ageRangeMax}</p>
+
+        {/* Age Range */}
+        <div className="flex items-center text-sm text-gray-700">
+          <Users className="w-4 h-4 mr-2 text-gray-500" />
+          <span>Ages {event.ageRangeMin}{event.ageRangeMax ? `-${event.ageRangeMax}` : '+'}</span>
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 italic text-left">Click for more details</p>
+      {/* Click for details text */}
+      <p className="text-xs text-gray-500 italic text-center mt-auto">Click for more details</p>
     </div>
   );
 }

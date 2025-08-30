@@ -55,58 +55,53 @@ export default function AdminDashboard() {
       <Header />
 
       {/* Main Content */}
-      <main className="flex-grow p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Upcoming Events & Create Event Section */}
-          <div className="bg-white border-4 border-teal p-8 rounded-lg shadow-lg mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-navy">Upcoming Events</h2>
-              <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="bg-orange text-white px-6 py-2 rounded hover:bg-navy transition-colors font-semibold"
-              >
-                {showCreateForm ? 'Cancel' : 'Create New Event'}
-              </button>
-            </div>
-
-            {showCreateForm && (
-              <CreateEventForm 
-                onEventCreated={handleEventCreated}
-                onCancel={() => setShowCreateForm(false)}
-              />
-            )}
-
-            {/* Upcoming Events List */}
-            {upcomingEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {upcomingEvents.map((event) => (
-                    <Event key={event.id} event={event} variant="upcoming" />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-600 py-4">
-                  <p>No upcoming events.</p>
-                </div>
-              )}
+      <main className="flex-grow p-4 sm:p-6 lg:p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          {/* Create Event Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="bg-orange text-white px-6 py-2 rounded hover:bg-navy transition-colors font-semibold"
+            >
+              {showCreateForm ? 'Cancel' : 'Create New Event'}
+            </button>
           </div>
+
+          {showCreateForm && (
+            <CreateEventForm 
+              onEventCreated={handleEventCreated}
+              onCancel={() => setShowCreateForm(false)}
+            />
+          )}
+
+          {/* Upcoming Events Section */}
+          <h3 className="text-2xl text-left font-bold text-navy mb-6">Upcoming Events</h3>
+          {upcomingEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {upcomingEvents.map((event) => (
+                <Event key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border-4 border-teal p-6 rounded-lg text-center">
+              <p className="text-gray-600">No upcoming events.</p>
+              <p className="text-gray-500 text-sm mt-2">Create your first event to get started!</p>
+            </div>
+          )}
 
           {/* Past Events Section */}
-          <div className="bg-white border-4 border-gray-400 p-8 rounded-lg shadow-lg mb-8">
-            <h2 className="text-2xl font-bold text-navy mb-6 text-left">Past Events</h2>
-              {pastEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {pastEvents.map((event) => (
-                    <Event key={event.id} event={event} variant="past" />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-600 py-4">
-                  <p>No past events.</p>
-                </div>
-              )}
-          </div>
-
-
+          <h3 className="text-2xl text-left font-bold text-navy mb-6">Past Events</h3>
+          {pastEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              {pastEvents.map((event) => (
+                <Event key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border-4 border-teal p-6 rounded-lg text-center">
+              <p className="text-gray-600">No past events yet.</p>
+            </div>
+          )}
         </div>
       </main>
 

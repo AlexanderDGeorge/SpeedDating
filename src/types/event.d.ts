@@ -4,9 +4,10 @@ export interface SpeedDatingEvent {
   description?: string;
   date: string; // ISO date string
   startTime: string; // HH:MM format
-  maxParticipants: number;
+  maleCapacity: number;
+  femaleCapacity: number;
   ageRangeMin: number;
-  ageRangeMax: number;
+  ageRangeMax?: number;
   registrationDeadline: string; // ISO date string
   createdAt: string;
   createdBy: string; // admin user ID
