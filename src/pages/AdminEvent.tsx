@@ -7,13 +7,13 @@ import EditEventForm from "../components/EditEventForm";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
 import { calculateAge } from "../utils/dateUtils";
-import { Calendar, Clock, Users, UserCheck, UserX } from "lucide-react";
+import { Calendar, Clock, Users, UserCheck, UserX, Mars, Venus } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import type { User } from "../types";
-import { fetchEventById, cancelEvent } from "../firebase/event";
-import { fetchEventRegistrations } from "../firebase/registration";
-import { fetchAllUsers } from "../firebase/user";
+import { fetchEventById, cancelEvent, updateEvent } from "../firebase/event";
+import { fetchEventRegistrations, createRegistration } from "../firebase/registration";
+import { fetchAllUsers, createUser } from "../firebase/user";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function AdminEvent() {
@@ -26,6 +26,11 @@ export default function AdminEvent() {
   const [error, setError] = useState("");
   const [showEditForm, setShowEditForm] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [addingMockUsers, setAddingMockUsers] = useState(false);
+  const [startingEvent, setStartingEvent] = useState(false);
+  const [completingEvent, setCompletingEvent] = useState(false);
+  const [openingCheckIn, setOpeningCheckIn] = useState(false);
+  const [resettingToCheckIn, setResettingToCheckIn] = useState(false);
 
   const { currentUser, isAdmin } = useAuth();
 
@@ -129,6 +134,182 @@ export default function AdminEvent() {
     await fetchEventData(); // Refresh event data
   };
 
+  const handleAddMockUsers = async () => {
+    if (!event || !eventId) return;
+    
+    setAddingMockUsers(true);
+    try {
+      // Generate mock users
+      const maleNames = ['Alex Johnson', 'Mike Chen', 'David Smith', 'Ryan Wilson', 'Chris Brown'];
+      const femaleNames = ['Sarah Davis', 'Emma Wilson', 'Lisa Garcia', 'Amy Thompson', 'Kate Miller'];
+      
+      const mockUsers = [];
+      
+      // Add 5 male mock users
+      for (let i = 0; i < 5; i++) {
+        const mockUser = {
+          name: maleNames[i],
+          email: `male${i + 1}@mockuser.com`,
+          gender: 'male' as const,
+          interestedIn: 'women' as const,
+          birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
+          bio: `Mock user ${i + 1} for testing purposes`,
+          createdAt: new Date().toISOString(),
+          authProvider: 'mock'
+        };
+        
+        const userId = `mock_male_${Date.now()}_${i}`;
+        await createUser(userId, mockUser);
+        
+        // Register the user for the event
+        await createRegistration({
+          eventId: eventId,
+          userId: userId,
+          registeredAt: new Date().toISOString(),
+          status: 'registered'
+        });
+        
+        mockUsers.push({ ...mockUser, id: userId });
+      }
+      
+      // Add 5 female mock users
+      for (let i = 0; i < 5; i++) {
+        const mockUser = {
+          name: femaleNames[i],
+          email: `female${i + 1}@mockuser.com`,
+          gender: 'female' as const,
+          interestedIn: 'men' as const,
+          birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
+          bio: `Mock user ${i + 1} for testing purposes`,
+          createdAt: new Date().toISOString(),
+          authProvider: 'mock'
+        };
+        
+        const userId = `mock_female_${Date.now()}_${i}`;
+        await createUser(userId, mockUser);
+        
+        // Register the user for the event
+        await createRegistration({
+          eventId: eventId,
+          userId: userId,
+          registeredAt: new Date().toISOString(),
+          status: 'registered'
+        });
+        
+        mockUsers.push({ ...mockUser, id: userId });
+      }
+      
+      // Refresh event data to show new registrations
+      await fetchEventData();
+      
+    } catch (err) {
+      console.error("Error adding mock users:", err);
+      setError("Failed to add mock users. Please try again.");
+    } finally {
+      setAddingMockUsers(false);
+    }
+  };
+
+  const handleOpenCheckIn = async () => {
+    if (!event || !eventId) return;
+    
+    if (!confirm("Are you sure you want to open check-in for this event? Participants will be able to check in.")) {
+      return;
+    }
+    
+    setOpeningCheckIn(true);
+    try {
+      await updateEvent(eventId, {
+        status: 'checking-in'
+      });
+      
+      // Refresh event data to show updated status
+      await fetchEventData();
+      
+    } catch (err) {
+      console.error("Error opening check-in:", err);
+      setError("Failed to open check-in. Please try again.");
+    } finally {
+      setOpeningCheckIn(false);
+    }
+  };
+
+  const handleStartEvent = async () => {
+    if (!event || !eventId) return;
+    
+    if (!confirm("Are you sure you want to start this event? This will mark it as 'active' and the event will officially begin.")) {
+      return;
+    }
+    
+    setStartingEvent(true);
+    try {
+      await updateEvent(eventId, {
+        status: 'active',
+        startedAt: new Date().toISOString(),
+        startedBy: auth.currentUser?.uid || ''
+      });
+      
+      // Refresh event data to show updated status
+      await fetchEventData();
+      
+    } catch (err) {
+      console.error("Error starting event:", err);
+      setError("Failed to start event. Please try again.");
+    } finally {
+      setStartingEvent(false);
+    }
+  };
+
+  const handleCompleteEvent = async () => {
+    if (!event || !eventId) return;
+    
+    if (!confirm("Are you sure you want to complete this event? This will mark it as finished and no further changes can be made.")) {
+      return;
+    }
+    
+    setCompletingEvent(true);
+    try {
+      await updateEvent(eventId, {
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        completedBy: auth.currentUser?.uid || ''
+      });
+      
+      // Refresh event data to show updated status
+      await fetchEventData();
+      
+    } catch (err) {
+      console.error("Error completing event:", err);
+      setError("Failed to complete event. Please try again.");
+    } finally {
+      setCompletingEvent(false);
+    }
+  };
+
+  const handleResetToCheckIn = async () => {
+    if (!event || !eventId) return;
+    
+    if (!confirm("Are you sure you want to reset this event to checking-in status? This will allow participants to check in again.")) {
+      return;
+    }
+    
+    setResettingToCheckIn(true);
+    try {
+      await updateEvent(eventId, {
+        status: 'checking-in'
+      });
+      
+      // Refresh event data to show updated status
+      await fetchEventData();
+      
+    } catch (err) {
+      console.error("Error resetting to check-in:", err);
+      setError("Failed to reset to check-in. Please try again.");
+    } finally {
+      setResettingToCheckIn(false);
+    }
+  };
+
   if (loading) {
     return <Loading fullPage={true} text="Loading event data..." />;
   }
@@ -153,12 +334,18 @@ export default function AdminEvent() {
   const isPastEvent = eventDate < new Date();
   
   const getEventStatusDisplay = () => {
-    if (event.status === 'cancelled') {
-      return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
-    } else if (isPastEvent) {
-      return { text: 'Completed', class: 'bg-green-100 text-green-800 border-green-200' };
-    } else {
-      return { text: 'Upcoming', class: 'bg-blue-100 text-blue-800 border-blue-200' };
+    switch (event.status) {
+      case 'cancelled':
+        return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
+      case 'checking-in':
+        return { text: 'Check-In Open', class: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+      case 'active':
+        return { text: 'Active', class: 'bg-green-100 text-green-800 border-green-200' };
+      case 'completed':
+        return { text: 'Completed', class: 'bg-gray-100 text-gray-800 border-gray-200' };
+      case 'upcoming':
+      default:
+        return { text: 'Upcoming', class: 'bg-blue-100 text-blue-800 border-blue-200' };
     }
   };
 
@@ -227,7 +414,7 @@ export default function AdminEvent() {
 
               {/* Male Capacity */}
               <div className="flex items-center text-sm text-gray-700">
-                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <Mars className="w-5 h-5 mr-3 text-gray-500" />
                 <div>
                   <span className="font-semibold">Male Capacity: </span>
                   <span>{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'male').length} / {event.maleCapacity}</span>
@@ -236,7 +423,7 @@ export default function AdminEvent() {
 
               {/* Female Capacity */}
               <div className="flex items-center text-sm text-gray-700">
-                <Users className="w-5 h-5 mr-3 text-gray-500" />
+                <Venus className="w-5 h-5 mr-3 text-gray-500" />
                 <div>
                   <span className="font-semibold">Female Capacity: </span>
                   <span>{registrations.filter(r => registeredUsers.find(u => u.id === r.userId)?.gender === 'female').length} / {event.femaleCapacity}</span>
@@ -327,21 +514,68 @@ export default function AdminEvent() {
           )}
 
           {/* Admin Action Buttons */}
-          {!showEditForm && event && event.status !== 'cancelled' && !isPastEvent && (
+          {!showEditForm && event && event.status !== 'cancelled' && event.status !== 'completed' && (
             <div className="flex gap-4 justify-center">
-              <Button
-                variant="secondary"
-                onClick={() => setShowEditForm(true)}
-              >
-                Edit Event
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleCancelEvent}
-                loading={cancelLoading}
-              >
-                {cancelLoading ? "Cancelling..." : "Cancel Event"}
-              </Button>
+              {event.status === 'upcoming' && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowEditForm(true)}
+                  >
+                    Edit Event
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleAddMockUsers}
+                    loading={addingMockUsers}
+                  >
+                    {addingMockUsers ? "Adding Mock Users..." : "Add Mock Users"}
+                  </Button>
+                  <Button
+                    variant="warning"
+                    onClick={handleOpenCheckIn}
+                    loading={openingCheckIn}
+                  >
+                    {openingCheckIn ? "Opening Check-In..." : "Open Check-In"}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={handleCancelEvent}
+                    loading={cancelLoading}
+                  >
+                    {cancelLoading ? "Cancelling..." : "Cancel Event"}
+                  </Button>
+                </>
+              )}
+              {event.status === 'checking-in' && (
+                <>
+                  <Button
+                    variant="success"
+                    onClick={handleStartEvent}
+                    loading={startingEvent}
+                  >
+                    {startingEvent ? "Starting Event..." : "Start Event"}
+                  </Button>
+                </>
+              )}
+              {event.status === 'active' && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={handleResetToCheckIn}
+                    loading={resettingToCheckIn}
+                  >
+                    {resettingToCheckIn ? "Resetting..." : "Back to Check-In"}
+                  </Button>
+                  <Button
+                    variant="warning"
+                    onClick={handleCompleteEvent}
+                    loading={completingEvent}
+                  >
+                    {completingEvent ? "Completing Event..." : "Complete Event"}
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </div>

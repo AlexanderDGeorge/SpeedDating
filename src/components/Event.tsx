@@ -11,27 +11,35 @@ export default function Event({ event, onClick }: EventProps) {
   const navigate = useNavigate();
 
   const eventDate = new Date(event.start);
-  const isPastEvent = eventDate < new Date();
-  const isCancelled = event.status === 'cancelled';
-  const isCompleted = event.status === 'completed' || isPastEvent;
-  const isUpcoming = !isPastEvent && !isCancelled && !isCompleted;
   
   const getStatusConfig = () => {
-    if (isCancelled) {
-      return {
-        color: 'bg-red-100 text-red-800 border-red-200',
-        text: "Cancelled"
-      };
-    } else if (isUpcoming) {
-      return {
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        text: "Upcoming"
-      };
-    } else {
-      return {
-        color: 'bg-green-100 text-green-800 border-green-200',
-        text: "Completed"
-      };
+    switch (event.status) {
+      case 'cancelled':
+        return {
+          color: 'bg-red-100 text-red-800 border-red-200',
+          text: "Cancelled"
+        };
+      case 'checking-in':
+        return {
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          text: "Check-In Open"
+        };
+      case 'active':
+        return {
+          color: 'bg-green-100 text-green-800 border-green-200',
+          text: "Active"
+        };
+      case 'completed':
+        return {
+          color: 'bg-gray-100 text-gray-800 border-gray-200',
+          text: "Completed"
+        };
+      case 'upcoming':
+      default:
+        return {
+          color: 'bg-blue-100 text-blue-800 border-blue-200',
+          text: "Upcoming"
+        };
     }
   };
 

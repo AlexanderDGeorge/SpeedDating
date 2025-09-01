@@ -9,6 +9,7 @@ import EditProfile from "./pages/EditProfile";
 import AdminEvent from "./pages/AdminEvent";
 import EventDetails from "./pages/EventDetails";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { EventProvider } from "./contexts/EventContext";
 
 function AppRoutes() {
   const { currentUser, isAdmin } = useAuth();
@@ -53,9 +54,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <EventProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </EventProvider>
     </AuthProvider>
   );
 }

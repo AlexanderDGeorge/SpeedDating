@@ -9,8 +9,9 @@ import { Calendar, Clock, Users, CheckCircle } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import { fetchEventById } from "../firebase/event";
-import { fetchUserRegistration, fetchEventRegistrationsByGender, createRegistration, cancelRegistration, checkInUser } from "../firebase/registration";
+import { createRegistration, cancelRegistration, checkInUser } from "../firebase/registration";
 import { useAuth } from "../contexts/AuthContext";
+import { useEvents } from "../contexts/EventContext";
 
 export default function EventDetails() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -24,10 +25,16 @@ export default function EventDetails() {
   const [registering, setRegistering] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [userRegistrationId, setUserRegistrationId] = useState<string | null>(null);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
 
-  const { currentUser, userProfile, isAdmin } = useAuth();
+  const { currentUser, userProfile, isAdmin, loading: authLoading } = useAuth();
+  const { getUserRegistrationForEvent, getEventRegistrationCounts, refreshUserRegistrations } = useEvents();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+
+    // Redirect if not authenticated
     if (!currentUser) {
       navigate("/auth");
       return;
@@ -39,8 +46,11 @@ export default function EventDetails() {
       return;
     }
 
-    fetchEventData(currentUser.uid);
-  }, [currentUser, isAdmin, eventId, navigate]);
+    // Only fetch data if we have a current user and they're not an admin
+    if (currentUser && !isAdmin) {
+      fetchEventData(currentUser.uid);
+    }
+  }, [authLoading, currentUser, isAdmin, eventId, navigate]);
 
   const fetchEventData = async (userId: string) => {
     if (!eventId) {
@@ -60,14 +70,18 @@ export default function EventDetails() {
       setEvent(eventData);
 
       // Check if user is registered for this event
-      const { isRegistered: registered, registrationId } = await fetchUserRegistration(eventId, userId);
-      setIsRegistered(registered);
-      if (registrationId) {
-        setUserRegistrationId(registrationId);
+      const userRegistration = getUserRegistrationForEvent(eventId);
+      setIsRegistered(!!userRegistration);
+      if (userRegistration) {
+        setUserRegistrationId(userRegistration.id);
+        setIsCheckedIn(userRegistration.status === 'checked-in');
+      } else {
+        setUserRegistrationId(null);
+        setIsCheckedIn(false);
       }
 
       // Get registration counts by gender
-      const { maleCount, femaleCount } = await fetchEventRegistrationsByGender(eventId);
+      const { maleCount, femaleCount } = await getEventRegistrationCounts(eventId);
       setMaleRegistrationCount(maleCount);
       setFemaleRegistrationCount(femaleCount);
 
@@ -94,9 +108,9 @@ export default function EventDetails() {
         return;
       }
 
-      // Check if event has already started
-      if (new Date(event.start) < new Date()) {
-        alert("Registration is closed as the event has already started.");
+      // Check if event is still accepting registrations
+      if (event.status !== 'upcoming') {
+        alert("Registration is only available for upcoming events.");
         return;
       }
 
@@ -120,6 +134,9 @@ export default function EventDetails() {
 
       await createRegistration(registrationData);
       
+      // Refresh user registrations to get the latest data
+      await refreshUserRegistrations();
+      
       setIsRegistered(true);
       if (userProfile?.gender === 'male') {
         setMaleRegistrationCount(prev => prev + 1);
@@ -137,13 +154,22 @@ export default function EventDetails() {
   };
 
   const handleCancelRegistration = async () => {
-    if (!eventId || !currentUser) return;
+    if (!eventId || !currentUser || !event) return;
+
+    // Check if cancellation is allowed
+    if (event.status !== 'upcoming' && event.status !== 'checking-in') {
+      alert("Registration can only be cancelled before the event starts.");
+      return;
+    }
 
     if (!confirm("Are you sure you want to cancel your registration?")) return;
 
     setRegistering(true);
     try {
       await cancelRegistration(eventId, currentUser.uid);
+      
+      // Refresh user registrations to get the latest data
+      await refreshUserRegistrations();
       
       setIsRegistered(false);
       if (userProfile?.gender === 'male') {
@@ -168,6 +194,10 @@ export default function EventDetails() {
     try {
       await checkInUser(userRegistrationId);
       
+      // Refresh user registrations to get the latest data
+      await refreshUserRegistrations();
+      
+      setIsCheckedIn(true);
       alert("Successfully checked in for the event!");
       
     } catch (err) {
@@ -178,8 +208,13 @@ export default function EventDetails() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return <Loading fullPage={true} text="Loading event details..." />;
+  }
+
+  // This should not happen due to useEffect redirects, but as a safety check
+  if (!currentUser) {
+    return <Loading fullPage={true} text="Redirecting..." />;
   }
 
   if (error || !event) {
@@ -199,20 +234,16 @@ export default function EventDetails() {
   }
 
   const eventDate = new Date(event.start);
-  const isPastEvent = eventDate < new Date();
-  const isCancelled = event.status === 'cancelled';
-  const isCompleted = event.status === 'completed';
-  const isRegistrationClosed = new Date(event.start) < new Date();
   const userGender = userProfile?.gender;
   const capacity = userGender === 'male' ? event.maleCapacity : event.femaleCapacity;
   const currentGenderCount = userGender === 'male' ? maleRegistrationCount : femaleRegistrationCount;
   const isFull = currentGenderCount >= capacity;
   const userAge = userProfile?.birthday ? calculateAge(userProfile.birthday) : 0;
   const meetsAgeRequirement = userProfile && userAge >= event.ageRangeMin && (!event.ageRangeMax || userAge <= event.ageRangeMax);
-  const canRegister = !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && !isRegistered && meetsAgeRequirement;
+  const canRegister = event.status === 'upcoming' && !isFull && !isRegistered && meetsAgeRequirement;
 
   // Check if check-in button should be shown (for registered users)
-  const showCheckInButton = isRegistered && !isPastEvent && !isCancelled && !isCompleted;
+  const showCheckInButton = isRegistered && event.status === 'checking-in';
   
   // Check if check-in is enabled (15 minutes before event start)
   const canCheckIn = (() => {
@@ -231,10 +262,11 @@ export default function EventDetails() {
 
 
   const getEventStatus = () => {
-    if (isCancelled) return { text: 'Cancelled', class: 'bg-red-200 text-red-700' };
-    if (isPastEvent) return { text: 'Completed', class: 'bg-green-200 text-green-800' };
+    if (event.status === 'cancelled') return { text: 'Cancelled', class: 'bg-red-200 text-red-700' };
+    if (event.status === 'completed') return { text: 'Completed', class: 'bg-green-200 text-green-800' };
+    if (event.status === 'active') return { text: 'Active', class: 'bg-green-200 text-green-800' };
+    if (event.status === 'checking-in') return { text: 'Check-In Open', class: 'bg-blue-200 text-blue-800' };
     if (isFull) return { text: 'Full', class: 'bg-orange-200 text-orange-800' };
-    if (isRegistrationClosed) return { text: 'Event Started', class: 'bg-gray-200 text-gray-700' };
     return { text: 'Open for Registration', class: 'bg-teal-100 text-teal-700' };
   };
 
@@ -306,8 +338,8 @@ export default function EventDetails() {
                   <span className="font-semibold">Spots Available: </span>
                   <span>
                     {userProfile?.gender === 'male' 
-                      ? `${Math.max(0, event.maleCapacity - maleRegistrationCount)} / ${event.maleCapacity} (Male)`
-                      : `${Math.max(0, event.femaleCapacity - femaleRegistrationCount)} / ${event.femaleCapacity} (Female)`
+                      ? `${Math.max(0, event.maleCapacity - maleRegistrationCount)} / ${event.maleCapacity}`
+                      : `${Math.max(0, event.femaleCapacity - femaleRegistrationCount)} / ${event.femaleCapacity}`
                     }
                   </span>
                 </div>
@@ -319,8 +351,8 @@ export default function EventDetails() {
                 <CheckCircle className={`w-5 h-5 mr-3 ${isRegistered ? 'text-green-500' : 'text-gray-400'}`} />
                 <div>
                   <span className="font-semibold">Your Status: </span>
-                  <span className={isRegistered ? 'text-green-600 font-semibold' : 'text-gray-600'}>
-                    {isRegistered ? 'Registered' : 'Not Registered'}
+                  <span className={isCheckedIn ? 'text-blue-600 font-semibold' : (isRegistered ? 'text-green-600 font-semibold' : 'text-gray-600')}>
+                    {isCheckedIn ? 'Checked In' : (isRegistered ? 'Registered' : 'Not Registered')}
                   </span>
                 </div>
               </div>
@@ -335,7 +367,7 @@ export default function EventDetails() {
                   variant="danger"
                   size="lg"
                   onClick={handleCancelRegistration}
-                  disabled={registering || isPastEvent}
+                  disabled={registering || (event.status !== 'upcoming' && event.status !== 'checking-in')}
                   loading={registering}
                 >
                   Cancel Registration
@@ -344,16 +376,16 @@ export default function EventDetails() {
                   <Button
                     variant="success"
                     size="lg"
-                    onClick={handleCheckIn}
-                    disabled={!canCheckIn || checkingIn}
+                    onClick={!isCheckedIn ? handleCheckIn : undefined}
+                    disabled={isCheckedIn || !canCheckIn || checkingIn}
                     loading={checkingIn}
-                    glow={canCheckIn}
+                    glow={!isCheckedIn && canCheckIn}
                   >
-                    Check In
+                    {isCheckedIn ? "Checked In" : "Check In"}
                   </Button>
                 )}
               </>
-            ) : !isPastEvent && !isCancelled ? (
+            ) : event.status === 'upcoming' ? (
               <Button
                 variant="primary"
                 size="lg"
@@ -370,15 +402,14 @@ export default function EventDetails() {
           {/* Status Messages */}
           {!canRegister && !isRegistered && (
             <div className="text-center">
-              {isPastEvent && <p className="text-gray-600">This event has already taken place.</p>}
-              {isCancelled && <p className="text-red-600">This event has been cancelled.</p>}
-              {isRegistrationClosed && !isPastEvent && !isCancelled && (
-                <p className="text-orange-600">Registration is closed as the event has started.</p>
-              )}
-              {isFull && !isRegistrationClosed && !isPastEvent && !isCancelled && (
+              {event.status === 'completed' && <p className="text-gray-600">This event has already taken place.</p>}
+              {event.status === 'cancelled' && <p className="text-red-600">This event has been cancelled.</p>}
+              {event.status === 'checking-in' && !isRegistered && <p className="text-yellow-600">Check-in is open for registered participants.</p>}
+              {event.status === 'active' && <p className="text-orange-600">This event is currently in progress.</p>}
+              {isFull && event.status === 'upcoming' && (
                 <p className="text-orange-600">This event is currently full.</p>
               )}
-              {!meetsAgeRequirement && !isPastEvent && !isCancelled && !isRegistrationClosed && !isFull && (
+              {!meetsAgeRequirement && event.status === 'upcoming' && !isFull && (
                 <p className="text-orange-600">
                   You must be {event.ageRangeMax ? `between ${event.ageRangeMin} and ${event.ageRangeMax}` : `${event.ageRangeMin} or older`} years old to register for this event.
                 </p>

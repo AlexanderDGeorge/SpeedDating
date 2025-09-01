@@ -4,7 +4,7 @@ import Footer from "../components/Footer";
 import Event from "../components/Event";
 import CreateEventForm from "../components/CreateEventForm";
 import type { SpeedDatingEvent } from "../types/event";
-import { getUpcomingAndPastEvents } from "../firebase/event";
+import { fetchAllEvents } from "../firebase/event";
 
 export default function AdminDashboard() {
   const [upcomingEvents, setUpcomingEvents] = useState<SpeedDatingEvent[]>([]);
@@ -13,7 +13,18 @@ export default function AdminDashboard() {
 
   const fetchEvents = async () => {
     try {
-      const { upcoming, past } = await getUpcomingAndPastEvents();
+      const allEvents = await fetchAllEvents();
+      const upcoming: SpeedDatingEvent[] = [];
+      const past: SpeedDatingEvent[] = [];
+      
+      allEvents.forEach(event => {
+        if (event.status === 'upcoming' || event.status === 'checking-in' || event.status === 'active') {
+          upcoming.push(event);
+        } else if (event.status === 'completed' || event.status === 'cancelled') {
+          past.push(event);
+        }
+      });
+      
       setUpcomingEvents(upcoming);
       setPastEvents(past);
     } catch (error) {

@@ -1,36 +1,28 @@
-import { useState, useEffect } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Event from "../components/Event";
 import Loading from "../components/Loading";
-import type { SpeedDatingEvent } from "../types/event";
-import { fetchUpcomingEvents } from "../firebase/event";
 import { useAuth } from "../contexts/AuthContext";
+import { useEvents } from "../contexts/EventContext";
 
 
 export default function UserDashboard() {
-  const [upcomingEvents, setUpcomingEvents] = useState<SpeedDatingEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const { userProfile } = useAuth();
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch upcoming events
-        const upcoming = await fetchUpcomingEvents();
-        setUpcomingEvents(upcoming);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+  const { upcomingEvents, loading, error } = useEvents();
 
   if (loading) {
     return <Loading fullPage={true} text="Loading your dashboard..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-xl mb-4">{error}</div>
+          <p className="text-gray-600">Please try refreshing the page.</p>
+        </div>
+      </div>
+    );
   }
 
   return (

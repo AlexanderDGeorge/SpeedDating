@@ -44,13 +44,18 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white border-b-4 border-navy p-4 sm:p-6">
+    <header className="bg-cream border-b-3 border-navy p-4 sm:p-6">
       <div className="max-w-6xl mx-auto flex justify-between items-center">
         <button 
           onClick={handleHomeClick}
-          className="text-xl sm:text-[22px] font-light text-navy cursor-pointer font-futura"
+          className="flex items-center gap-3 text-xl sm:text-[22px] font-light text-navy cursor-pointer font-futura"
           style={{ fontFamily: 'Futura, "Trebuchet MS", Arial, sans-serif' }}
         >
+          <img 
+            src="/TheBusStopLogo.avif" 
+            alt="The Bus Stop Logo" 
+            className="w-8 h-8 sm:w-10 sm:h-10"
+          />
           THE BUS STOP
         </button>
 

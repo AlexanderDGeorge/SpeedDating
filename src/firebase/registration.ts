@@ -2,24 +2,26 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, g
 import { db } from "./index";
 import type { EventRegistration } from "../types/registration";
 
-export async function fetchUserRegistration(eventId: string, userId: string): Promise<{ isRegistered: boolean; registrationId: string | null }> {
+const registrationsRef = collection(db, 'registrations');
+
+export async function fetchUserRegistration(eventId: string, userId: string): Promise<EventRegistration | null> {
   const registrationsQuery = query(
-    collection(db, "registrations"),
+    registrationsRef,
     where("eventId", "==", eventId),
-    where("userId", "==", userId),
-    where("status", "==", "registered")
+    where("userId", "==", userId)
   );
   const userRegistration = await getDocs(registrationsQuery);
+  const userRegistrationDoc = userRegistration.docs.at(0)
+  if (!userRegistrationDoc?.exists()) {
+    return null;
+  }
   
-  return {
-    isRegistered: !userRegistration.empty,
-    registrationId: userRegistration.empty ? null : userRegistration.docs[0].id
-  };
+  return { id: userRegistrationDoc.id, ...userRegistrationDoc.data() } as EventRegistration;
 }
 
 export async function fetchEventRegistrations(eventId: string): Promise<EventRegistration[]> {
   const registrationsQuery = query(
-    collection(db, "registrations"),
+    registrationsRef,
     where("eventId", "==", eventId)
   );
   const registrationsSnapshot = await getDocs(registrationsQuery);
@@ -32,7 +34,7 @@ export async function fetchEventRegistrations(eventId: string): Promise<EventReg
 
 export async function fetchEventRegistrationsByGender(eventId: string): Promise<{ maleCount: number; femaleCount: number }> {
   const registrationsQuery = query(
-    collection(db, "registrations"),
+    registrationsRef,
     where("eventId", "==", eventId),
     where("status", "==", "registered")
   );
@@ -59,13 +61,13 @@ export async function fetchEventRegistrationsByGender(eventId: string): Promise<
 }
 
 export async function createRegistration(registrationData: Omit<EventRegistration, 'id'>): Promise<string> {
-  const docRef = await addDoc(collection(db, "registrations"), registrationData);
+  const docRef = await addDoc(registrationsRef, registrationData);
   return docRef.id;
 }
 
 export async function cancelRegistration(eventId: string, userId: string): Promise<void> {
   const registrationsQuery = query(
-    collection(db, "registrations"),
+    registrationsRef,
     where("eventId", "==", eventId),
     where("userId", "==", userId),
     where("status", "==", "registered")
