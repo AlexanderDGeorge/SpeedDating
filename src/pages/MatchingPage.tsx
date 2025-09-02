@@ -1,55 +1,73 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { auth, db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-
-interface Partner {
-  id: string;
-  name: string;
-  age: number;
-  gender: string;
-  bio?: string;
-}
+import { useAuth } from "../contexts/AuthContext";
+import { fetchEventPartners } from "../firebase/registration";
+import type { User } from "../types";
 
 type RatingType = 'not-interested' | 'maybe' | 'interested' | null;
 
+const calculateAge = (birthday: string): number => {
+  const birthDate = new Date(birthday);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 export default function MatchingPage() {
-  const [currentPartner, setCurrentPartner] = useState<Partner | null>(null);
+  const { eventId } = useParams<{ eventId: string }>();
+  const { currentUser, userProfile } = useAuth();
   const [rating, setRating] = useState<RatingType>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [partnersQueue, setPartnersQueue] = useState<Partner[]>([]);
+  const [partnersQueue, setPartnersQueue] = useState<User[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [fetchingPartners, setFetchingPartners] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Mock partner data - in real app this would come from Firestore
-  const mockPartners: Partner[] = [
-    { id: "partner1", name: "Alex Johnson", age: 28, gender: "female", bio: "Love hiking and trying new restaurants. Looking for someone who shares my passion for adventure!" },
-    { id: "partner2", name: "Sam Wilson", age: 32, gender: "male", bio: "Software engineer by day, musician by night. Always up for deep conversations about life and technology." },
-    { id: "partner3", name: "Casey Martinez", age: 26, gender: "non-binary", bio: "Artist and coffee enthusiast. I believe in living life authentically and spreading positivity." },
-    { id: "partner4", name: "Jordan Lee", age: 30, gender: "female", bio: "Travel blogger who's visited 35 countries. Seeking someone who loves exploring new cultures as much as I do." },
-    { id: "partner5", name: "Taylor Brown", age: 29, gender: "male", bio: "Fitness trainer and dog lover. When I'm not at the gym, you'll find me at the park with my golden retriever." }
-  ];
+  // Fetch partners who are checked into the event
+  const fetchPartners = async () => {
+    if (!eventId || !userProfile) return;
 
-  const { currentUser } = useAuth();
+    try {
+      setFetchingPartners(true);
+      setError(null);
+
+      // Get all checked-in registrations for this event
+      const partners = await fetchEventPartners(eventId, userProfile) 
+      setPartnersQueue(partners);
+      if (partners.length === 0) {
+        setError('No other participants are checked in to this event yet.');
+      }
+    } catch (err) {
+      console.error('Error fetching event partners:', err);
+      setError('Failed to load event participants. Please try again.');
+    } finally {
+      setFetchingPartners(false);
+    }
+  };
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/auth");
+    if (!eventId) {
+      setError('No event ID provided. Please access this page through an event.');
+      setFetchingPartners(false);
       return;
     }
-    // Initialize partners queue with mock data
-    setPartnersQueue(mockPartners);
-    setCurrentPartner(mockPartners[0]);
-  }, [currentUser, navigate]);
+
+    if (currentUser) {
+      fetchPartners();
+    }
+  }, [currentUser, eventId]);
 
   const handleSubmitRating = async () => {
-    if (!rating || !currentPartner || !currentUser) {
+    if (!rating || !partnersQueue[currentIndex] || !currentUser) {
       alert("Please select a rating before continuing");
       return;
     }
@@ -58,21 +76,23 @@ export default function MatchingPage() {
 
     try {
       // Save rating to Firestore
-      await setDoc(doc(db, "ratings", `${currentUser.uid}_${currentPartner.id}`), {
+      const ratingData = {
         userId: currentUser.uid,
-        partnerId: currentPartner.id,
-        partnerName: currentPartner.name,
+        partnerId: partnersQueue[currentIndex].id,
+        partnerName: partnersQueue[currentIndex].name,
         rating: rating,
         notes: notes.trim(),
         createdAt: new Date().toISOString(),
-        sessionDate: new Date().toDateString()
-      });
+        sessionDate: new Date().toDateString(),
+        ...(eventId && { eventId })
+      };
+      
+      // await setDoc(doc(db, "ratings", `${currentUser.uid}_${partnersQueue[currentIndex].id}`), ratingData);
 
       // Move to next partner
       const nextIndex = currentIndex + 1;
       if (nextIndex < partnersQueue.length) {
         setCurrentIndex(nextIndex);
-        setCurrentPartner(partnersQueue[nextIndex]);
         setRating(null);
         setNotes("");
       } else {
@@ -113,6 +133,71 @@ export default function MatchingPage() {
     );
   }
 
+  // Show loading state while fetching partners
+  if (fetchingPartners) {
+    return (
+      <div className="min-h-screen bg-cream flex flex-col">
+        <Header />
+        <main className="flex-grow flex items-center justify-center p-8">
+          <div className="bg-white border-4 border-navy p-12 rounded-lg shadow-lg text-center max-w-md">
+            <div className="text-4xl mb-4">⏳</div>
+            <h2 className="text-2xl font-bold text-navy mb-4">Loading Partners...</h2>
+            <p className="text-gray-700">
+              Finding other participants who are checked in to this event.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show error state if something went wrong
+  if (error) {
+    return (
+      <div className="min-h-screen bg-cream flex flex-col">
+        <Header />
+        <main className="flex-grow flex items-center justify-center p-8">
+          <div className="bg-white border-4 border-red-500 p-12 rounded-lg shadow-lg text-center max-w-md">
+            <div className="text-4xl mb-4">❌</div>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Unable to Load Partners</h2>
+            <p className="text-gray-700 mb-8">{error}</p>
+            <button
+              onClick={() => navigate("/")}
+              className="bg-orange text-white px-8 py-3 rounded-lg hover:bg-navy transition-colors font-semibold"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Show message if no partners available
+  if (!partnersQueue[currentIndex] || partnersQueue.length === 0) {
+    return (
+      <div className="min-h-screen bg-cream flex flex-col">
+        <Header />
+        <main className="flex-grow flex items-center justify-center p-8">
+          <div className="bg-white border-4 border-navy p-12 rounded-lg shadow-lg text-center max-w-md">
+            <div className="text-4xl mb-4">😔</div>
+            <h2 className="text-2xl font-bold text-navy mb-4">No Partners Available</h2>
+            <p className="text-gray-700 mb-8">
+              There are currently no other participants checked in to this event. 
+              Please wait for more people to check in.
+            </p>
+            <button
+              onClick={() => navigate("/")}
+              className="bg-orange text-white px-8 py-3 rounded-lg hover:bg-navy transition-colors font-semibold"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cream flex flex-col">
       <Header />
@@ -129,30 +214,30 @@ export default function MatchingPage() {
       {/* Main Content */}
       <main className="flex-grow flex items-center justify-center p-8">
         <div className="w-full max-w-2xl">
-          {currentPartner && (
+          {partnersQueue[currentIndex] && (
             <div className="bg-white border-4 border-navy p-8 rounded-lg shadow-lg">
               {/* Partner Info */}
               <div className="text-center mb-8">
                 <div className="bg-teal p-6 rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
                   <span className="text-white text-3xl font-bold">
-                    {currentPartner.name.charAt(0)}
+                    {partnersQueue[currentIndex].name.charAt(0)}
                   </span>
                 </div>
-                <h2 className="text-3xl font-bold text-navy mb-2">{currentPartner.name}</h2>
+                <h2 className="text-3xl font-bold text-navy mb-2">{partnersQueue[currentIndex].name}</h2>
                 <div className="flex justify-center gap-6 text-gray-700 mb-4">
                   <div className="bg-cream px-4 py-2 rounded-lg">
                     <span className="text-sm text-gray-600">Age</span>
-                    <p className="font-semibold">{currentPartner.age}</p>
+                    <p className="font-semibold">{calculateAge(partnersQueue[currentIndex].birthday)}</p>
                   </div>
                   <div className="bg-cream px-4 py-2 rounded-lg">
                     <span className="text-sm text-gray-600">Gender</span>
-                    <p className="font-semibold capitalize">{currentPartner.gender}</p>
+                    <p className="font-semibold capitalize">{partnersQueue[currentIndex].gender}</p>
                   </div>
                 </div>
-                {currentPartner.bio && (
+                {partnersQueue[currentIndex].bio && (
                   <div className="bg-cream p-4 rounded-lg max-w-md mx-auto">
                     <p className="text-sm text-gray-600 mb-1">About Me</p>
-                    <p className="text-navy italic">"{currentPartner.bio}"</p>
+                    <p className="text-navy italic">"{partnersQueue[currentIndex].bio}"</p>
                   </div>
                 )}
               </div>
@@ -252,3 +337,4 @@ export default function MatchingPage() {
     </div>
   );
 }
+

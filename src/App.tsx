@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserAuth from "./pages/UserAuth";
@@ -10,43 +10,33 @@ import AdminEvent from "./pages/AdminEvent";
 import EventDetails from "./pages/EventDetails";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { EventProvider } from "./contexts/EventContext";
+import AdminMatching from "./pages/AdminMatching";
+
 
 function AppRoutes() {
   const { currentUser, isAdmin } = useAuth();
   const isAuthenticated = !!currentUser;
 
+  const ProtectedRoute: React.FC<{children?: React.ReactNode}> = ({children}) => {
+    if (!isAuthenticated) {
+      return <Navigate to='/auth' replace />
+    }
+    return children ? children : <Outlet />
+  }
+
   return (
     <Routes>
       <Route 
         path="/" 
-        element={
-          isAuthenticated 
-            ? (isAdmin ? <Navigate to="/admin" /> : <UserDashboard />) 
-            : <LandingPage />
-        } 
+        element={isAuthenticated ? (isAdmin ? <AdminDashboard /> : <UserDashboard />) : <LandingPage />} 
       />
       <Route path="/auth" element={<UserAuth />} />
-      <Route path="/complete-profile" element={<CompleteProfile />} />
-      <Route 
-        path="/admin" 
-        element={isAuthenticated && isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
-      />
-      <Route 
-        path="/matching" 
-        element={isAuthenticated && !isAdmin ? <MatchingPage /> : <Navigate to="/" />} 
-      />
-      <Route 
-        path="/edit-profile" 
-        element={isAuthenticated && !isAdmin ? <EditProfile /> : <Navigate to="/" />} 
-      />
-      <Route 
-        path="/admin/event/:eventId" 
-        element={isAuthenticated && isAdmin ? <AdminEvent /> : <Navigate to="/" />} 
-      />
-      <Route 
-        path="/event/:eventId" 
-        element={isAuthenticated ? <EventDetails /> : <Navigate to="/auth" />} 
-      />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/complete-profile" element={<CompleteProfile />} />
+        <Route path="/edit-profile" element={<EditProfile />} />
+        <Route path="/event/:eventId" element={isAdmin ? <AdminEvent /> : <EventDetails />} />
+        <Route path="/event/:eventId/matching" element={isAdmin ? <AdminMatching /> : <MatchingPage />} />
+      </Route>
     </Routes>
   );
 }

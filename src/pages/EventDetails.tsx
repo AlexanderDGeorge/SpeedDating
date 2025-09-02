@@ -27,30 +27,14 @@ export default function EventDetails() {
   const [userRegistrationId, setUserRegistrationId] = useState<string | null>(null);
   const [isCheckedIn, setIsCheckedIn] = useState(false);
 
-  const { currentUser, userProfile, isAdmin, loading: authLoading } = useAuth();
+  const { currentUser, userProfile, isAdmin } = useAuth();
   const { getUserRegistrationForEvent, getEventRegistrationCounts, refreshUserRegistrations } = useEvents();
 
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) return;
-
-    // Redirect if not authenticated
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-
-    // Check if user is admin (admins should use the admin event page)
-    if (isAdmin) {
-      navigate(`/admin/event/${eventId}`);
-      return;
-    }
-
-    // Only fetch data if we have a current user and they're not an admin
-    if (currentUser && !isAdmin) {
+    if (currentUser) {
       fetchEventData(currentUser.uid);
     }
-  }, [authLoading, currentUser, isAdmin, eventId, navigate]);
+  }, [currentUser, eventId]);
 
   const fetchEventData = async (userId: string) => {
     if (!eventId) {
@@ -208,13 +192,8 @@ export default function EventDetails() {
     }
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return <Loading fullPage={true} text="Loading event details..." />;
-  }
-
-  // This should not happen due to useEffect redirects, but as a safety check
-  if (!currentUser) {
-    return <Loading fullPage={true} text="Redirecting..." />;
   }
 
   if (error || !event) {
@@ -262,12 +241,12 @@ export default function EventDetails() {
 
 
   const getEventStatus = () => {
-    if (event.status === 'cancelled') return { text: 'Cancelled', class: 'bg-red-200 text-red-700' };
-    if (event.status === 'completed') return { text: 'Completed', class: 'bg-green-200 text-green-800' };
-    if (event.status === 'active') return { text: 'Active', class: 'bg-green-200 text-green-800' };
-    if (event.status === 'checking-in') return { text: 'Check-In Open', class: 'bg-blue-200 text-blue-800' };
-    if (isFull) return { text: 'Full', class: 'bg-orange-200 text-orange-800' };
-    return { text: 'Open for Registration', class: 'bg-teal-100 text-teal-700' };
+    if (event.status === 'cancelled') return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
+    if (event.status === 'completed') return { text: 'Completed', class: 'bg-gray-100 text-gray-800 border-gray-200' };
+    if (event.status === 'active') return { text: 'Active', class: 'bg-green-100 text-green-800 border-green-200' };
+    if (event.status === 'checking-in') return { text: 'Check-In Open', class: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
+    if (isFull) return { text: 'Full', class: 'bg-orange-100 text-orange-800 border-orange-200' };
+    return { text: 'Open for Registration', class: 'bg-blue-100 text-blue-800 border-blue-200' };
   };
 
   const eventStatus = getEventStatus();
@@ -282,16 +261,16 @@ export default function EventDetails() {
           {/* Event Details Card */}
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
             {/* Title and Status */}
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
+            <div className="flex flex-col-reverse sm:flex-row justify-between items-start gap-4 mb-6">
               <div>
                 <h1 className="text-2xl sm:text-3xl text-left font-bold text-navy mb-2">{event.title}</h1>
                 {event.description && (
                   <p className="text-gray-700 text-lg">{event.description}</p>
                 )}
               </div>
-              <div className={`px-4 py-2 rounded-lg font-semibold ${eventStatus.class} whitespace-nowrap`}>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class} whitespace-nowrap self-start`}>
                 {eventStatus.text}
-              </div>
+              </span>
             </div>
 
             <div className="space-y-4">
@@ -422,13 +401,13 @@ export default function EventDetails() {
             <h2 className="text-2xl font-bold text-navy text-left">Event Information</h2>
             
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <h3 className="font-semibold text-navy mb-3 text-xl">What to Expect</h3>
-              <p className="text-gray-700 leading-relaxed">Join us for an exciting speed dating event where you'll have the opportunity to meet other singles in a fun, structured environment. Each mini-date lasts just a few minutes, giving you the perfect amount of time to make a great first impression!</p>
+              <h3 className="font-semibold text-navy mb-3 text-xl text-left">What to Expect</h3>
+              <p className="text-gray-700 leading-relaxed text-left">Join us for an exciting speed dating event where you'll have the opportunity to meet other singles in a fun, structured environment. Each mini-date lasts just a few minutes, giving you the perfect amount of time to make a great first impression!</p>
             </div>
             
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <h3 className="font-semibold text-navy mb-3 text-xl">How It Works</h3>
-              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700">
+              <h3 className="font-semibold text-navy mb-3 text-xl text-left">How It Works</h3>
+              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700 text-left">
                 <li>Check in at the event and receive your dating card</li>
                 <li>Participate in quick 3-5 minute dates with other attendees</li>
                 <li>Mark your dating card with who you'd like to see again</li>
@@ -437,8 +416,8 @@ export default function EventDetails() {
             </div>
 
             <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-              <h3 className="font-semibold text-navy mb-3 text-xl">Important Notes</h3>
-              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700">
+              <h3 className="font-semibold text-navy mb-3 text-xl text-left">Important Notes</h3>
+              <ul className="list-disc list-inside space-y-2 ml-4 text-gray-700 text-left">
                 <li>Please arrive 10 minutes before the start time</li>
                 <li>Age range for this event: {event.ageRangeMin}{event.ageRangeMax ? ` - ${event.ageRangeMax}` : '+'} years</li>
                 <li>Registration closes when the event starts</li>
@@ -453,3 +432,4 @@ export default function EventDetails() {
     </div>
   );
 }
+

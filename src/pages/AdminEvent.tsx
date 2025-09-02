@@ -1,20 +1,18 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditEventForm from "../components/EditEventForm";
+import EventParticipants from "../components/EventParticipants";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
-import { calculateAge } from "../utils/dateUtils";
-import { Calendar, Clock, Users, UserCheck, UserX, Mars, Venus } from "lucide-react";
+import { Calendar, Clock, Users, UserCheck, Mars, Venus } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import type { User } from "../types";
 import { fetchEventById, cancelEvent, updateEvent } from "../firebase/event";
-import { fetchEventRegistrations, createRegistration } from "../firebase/registration";
+import { fetchEventRegistrations, createRegistration, checkInUser } from "../firebase/registration";
 import { fetchAllUsers, createUser } from "../firebase/user";
-import { useAuth } from "../contexts/AuthContext";
 
 export default function AdminEvent() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -31,23 +29,12 @@ export default function AdminEvent() {
   const [completingEvent, setCompletingEvent] = useState(false);
   const [openingCheckIn, setOpeningCheckIn] = useState(false);
   const [resettingToCheckIn, setResettingToCheckIn] = useState(false);
+  const [checkingInAll, setCheckingInAll] = useState(false);
 
-  const { currentUser, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-
-    // Check if user is admin
-    if (!isAdmin) {
-      navigate("/");
-      return;
-    }
-
     fetchEventData();
-  }, [currentUser, isAdmin, eventId, navigate]);
+  }, [eventId]);
 
   const fetchEventData = async () => {
     if (!eventId) {
@@ -88,36 +75,13 @@ export default function AdminEvent() {
     }
   };
 
-  const getStatusColor = (status: EventRegistration['status']) => {
-    switch (status) {
-      case 'registered': return 'text-blue-600 bg-blue-100';
-      case 'checked-in': return 'text-green-600 bg-green-100';
-      case 'no-show': return 'text-red-600 bg-red-100';
-      case 'cancelled': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusText = (status: EventRegistration['status']) => {
-    switch (status) {
-      case 'registered': return 'Registered';
-      case 'checked-in': return 'Checked In';
-      case 'no-show': return 'No Show';
-      case 'cancelled': return 'Cancelled';
-      default: return 'Unknown';
-    }
-  };
-
-  const getUserForRegistration = (userId: string): User | undefined => {
-    return registeredUsers.find(user => user.id === userId);
-  };
 
   const handleCancelEvent = async () => {
     if (!event || !eventId) return;
     
     setCancelLoading(true);
     try {
-      await cancelEvent(eventId, auth.currentUser?.uid || '');
+      await cancelEvent(eventId);
       
       // Refresh event data
       await fetchEventData();
@@ -151,7 +115,7 @@ export default function AdminEvent() {
           name: maleNames[i],
           email: `male${i + 1}@mockuser.com`,
           gender: 'male' as const,
-          interestedIn: 'women' as const,
+          interestedIn: 'female' as const,
           birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
           bio: `Mock user ${i + 1} for testing purposes`,
           createdAt: new Date().toISOString(),
@@ -178,7 +142,7 @@ export default function AdminEvent() {
           name: femaleNames[i],
           email: `female${i + 1}@mockuser.com`,
           gender: 'female' as const,
-          interestedIn: 'men' as const,
+          interestedIn: 'male' as const,
           birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
           bio: `Mock user ${i + 1} for testing purposes`,
           createdAt: new Date().toISOString(),
@@ -246,7 +210,6 @@ export default function AdminEvent() {
       await updateEvent(eventId, {
         status: 'active',
         startedAt: new Date().toISOString(),
-        startedBy: auth.currentUser?.uid || ''
       });
       
       // Refresh event data to show updated status
@@ -272,7 +235,6 @@ export default function AdminEvent() {
       await updateEvent(eventId, {
         status: 'completed',
         completedAt: new Date().toISOString(),
-        completedBy: auth.currentUser?.uid || ''
       });
       
       // Refresh event data to show updated status
@@ -310,6 +272,40 @@ export default function AdminEvent() {
     }
   };
 
+  const handleCheckInAll = async () => {
+    if (!event || !eventId) return;
+    
+    const registeredParticipants = registrations.filter(r => r.status === 'registered');
+    
+    if (registeredParticipants.length === 0) {
+      alert("No registered participants to check in.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to check in all ${registeredParticipants.length} registered participants?`)) {
+      return;
+    }
+    
+    setCheckingInAll(true);
+    try {
+      // Check in all registered participants
+      await Promise.all(
+        registeredParticipants.map(registration => checkInUser(registration.id))
+      );
+      
+      // Refresh event data to show updated statuses
+      await fetchEventData();
+      
+      alert(`Successfully checked in ${registeredParticipants.length} participants!`);
+      
+    } catch (err) {
+      console.error("Error checking in all participants:", err);
+      setError("Failed to check in all participants. Please try again.");
+    } finally {
+      setCheckingInAll(false);
+    }
+  };
+
   if (loading) {
     return <Loading fullPage={true} text="Loading event data..." />;
   }
@@ -321,9 +317,9 @@ export default function AdminEvent() {
           <div className="text-red-600 text-xl mb-4">{error || "Event not found"}</div>
           <Button 
             variant="primary"
-            onClick={() => navigate("/admin")}
+            onClick={() => navigate("/")}
           >
-            Back to Admin Dashboard
+            Back to Dashboard
           </Button>
         </div>
       </div>
@@ -331,7 +327,6 @@ export default function AdminEvent() {
   }
 
   const eventDate = new Date(event.start);
-  const isPastEvent = eventDate < new Date();
   
   const getEventStatusDisplay = () => {
     switch (event.status) {
@@ -360,19 +355,17 @@ export default function AdminEvent() {
         <div className="max-w-6xl mx-auto space-y-8">
           {/* Event Details Card */}
           <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-            {/* Status Badge */}
-            <div className="flex justify-start mb-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class}`}>
+            {/* Title and Status */}
+            <div className="flex flex-col-reverse sm:flex-row justify-between items-start gap-4 mb-6">
+              <div>
+                <h1 className="text-2xl sm:text-3xl text-left font-bold text-navy mb-2">{event.title}</h1>
+                {event.description && (
+                  <p className="text-gray-700 text-lg text-left">{event.description}</p>
+                )}
+              </div>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class} whitespace-nowrap self-start`}>
                 {eventStatus.text}
               </span>
-            </div>
-            
-            {/* Title and Description */}
-            <div className="mb-6">
-              <h1 className="text-2xl sm:text-3xl text-left font-bold text-navy mb-2">{event.title}</h1>
-              {event.description && (
-                <p className="text-gray-700 text-lg text-left">{event.description}</p>
-              )}
             </div>
 
             <div className="space-y-4">
@@ -440,67 +433,15 @@ export default function AdminEvent() {
                 </div>
               </div>
 
-              {/* No Shows */}
-              <div className="flex items-center text-sm text-gray-700">
-                <UserX className="w-5 h-5 mr-3 text-gray-500" />
-                <div>
-                  <span className="font-semibold">No Shows: </span>
-                  <span>{registrations.filter(r => r.status === 'no-show').length} participants</span>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Registrants Table */}
-          <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-navy mb-6">
-              {isPastEvent ? 'Event Participants' : 'Registered Users'} ({registrations.length})
-            </h2>
-
-            {registrations.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-700">
-                      <th className="p-3 border-b text-left font-semibold">Name</th>
-                      <th className="p-3 border-b text-left font-semibold">Email</th>
-                      <th className="p-3 border-b text-left font-semibold">Age</th>
-                      <th className="p-3 border-b text-left font-semibold">Gender</th>
-                      <th className="p-3 border-b text-left font-semibold">Status</th>
-                      <th className="p-3 border-b text-left font-semibold">Registered</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registrations.map((registration) => {
-                      const user = getUserForRegistration(registration.userId);
-                      return (
-                        <tr key={registration.id} className="hover:bg-gray-50 transition-colors border-b">
-                          <td className="p-3">
-                            <p className="font-semibold text-gray-900">{user?.name || 'Unknown User'}</p>
-                          </td>
-                          <td className="p-3 text-sm text-gray-600">{user?.email || 'N/A'}</td>
-                          <td className="p-3 text-center text-gray-600">{user?.birthday ? calculateAge(user.birthday) : 'N/A'}</td>
-                          <td className="p-3 capitalize text-gray-600">{user?.gender || 'N/A'}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(registration.status)}`}>
-                              {getStatusText(registration.status)}
-                            </span>
-                          </td>
-                          <td className="p-3 text-sm text-gray-600">
-                            {new Date(registration.registeredAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center text-gray-600 py-8">
-                <p>No registrations for this event yet.</p>
-              </div>
-            )}
-          </div>
+          {/* Event Participants */}
+          <EventParticipants 
+            event={event}
+            registrations={registrations}
+            registeredUsers={registeredUsers}
+          />
 
           {/* Edit Event Form */}
           {showEditForm && event && (
@@ -550,6 +491,13 @@ export default function AdminEvent() {
               {event.status === 'checking-in' && (
                 <>
                   <Button
+                    variant="primary"
+                    onClick={handleCheckInAll}
+                    loading={checkingInAll}
+                  >
+                    {checkingInAll ? "Checking In All..." : "Check In All"}
+                  </Button>
+                  <Button
                     variant="success"
                     onClick={handleStartEvent}
                     loading={startingEvent}
@@ -585,3 +533,4 @@ export default function AdminEvent() {
     </div>
   );
 }
+

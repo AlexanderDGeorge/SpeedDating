@@ -32,15 +32,7 @@ export default function Header() {
   };
 
   const handleHomeClick = () => {
-    if (isAuthenticated) {
-      if (isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
-    } else {
-      navigate("/");
-    }
+    navigate("/");
   };
 
   return (
@@ -86,17 +78,6 @@ export default function Header() {
                 <div className="absolute right-0 mt-2 w-48 p-1 bg-white border-2 border-navy rounded-lg shadow-lg z-50">
                   {isAuthenticated ? (
                     <>
-                      {isAdmin && (
-                        <button
-                          onClick={() => {
-                            navigate("/admin");
-                            setIsMenuOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-cream transition-colors"
-                        >
-                          Admin Dashboard
-                        </button>
-                      )}
                       <button
                         onClick={() => {
                           navigate("/");

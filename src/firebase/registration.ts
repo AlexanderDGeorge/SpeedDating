@@ -1,6 +1,7 @@
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "./index";
 import type { EventRegistration } from "../types/registration";
+import type { User } from "../types";
 
 const registrationsRef = collection(db, 'registrations');
 
@@ -86,4 +87,29 @@ export async function checkInUser(registrationId: string): Promise<void> {
     status: 'checked-in',
     checkedInAt: new Date().toISOString()
   });
+}
+
+export async function fetchEventPartners(eventId: string, user: User):Promise<User[]> {
+  const registrationsQuery = query(
+    registrationsRef,
+    where("eventId", "==", eventId),
+    where("status", "==", "checked-in")
+  );
+
+  const partners: User[] = [];
+  const registrations = await getDocs(registrationsQuery);
+
+  for (const registration of registrations.docs) {
+    const partnerId = registration.data().userId;
+    const partnerDoc = await getDoc(doc(db, "users", partnerId));
+
+    if (partnerDoc.exists() && partnerId !== user.id) {
+      const partner = { id: partnerId, ...partnerDoc.data() } as User;
+      if (partner.interestedIn === user.gender && partner.gender === user.interestedIn){
+        partners.push(partner)
+      }
+    }
+  }
+
+  return partners
 }

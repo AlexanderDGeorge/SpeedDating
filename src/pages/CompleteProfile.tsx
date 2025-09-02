@@ -6,11 +6,12 @@ import Button from "../components/Button";
 import { getMaxBirthdayDate, getMinBirthdayDate } from "../utils/dateUtils";
 import { useAuth } from "../contexts/AuthContext";
 import { createUser } from "../firebase/user";
+import type { User } from "../types";
 
 export default function CompleteProfile() {
   const [name, setName] = useState("");
-  const [gender, setGender] = useState("");
-  const [interestedIn, setInterestedIn] = useState("");
+  const [gender, setGender] = useState<User['gender']>();
+  const [interestedIn, setInterestedIn] = useState<User['interestedIn']>();
   const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [error, setError] = useState("");
@@ -18,44 +19,33 @@ export default function CompleteProfile() {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
-  const { currentUser, userProfile, isAdmin } = useAuth();
+  const { currentUser, userProfile } = useAuth();
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-
     // Check if profile already exists
     if (userProfile) {
-      if (isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
+      navigate("/");
       return;
     }
 
     // Set email from auth
-    setEmail(currentUser.email || "");
-    
-    // If Google user, we might have their name
-    if (currentUser.displayName) {
-      setName(currentUser.displayName);
+    if (currentUser) {
+      setEmail(currentUser.email || "");
+      
+      // If Google user, we might have their name
+      if (currentUser.displayName) {
+        setName(currentUser.displayName);
+      }
     }
-  }, [currentUser, userProfile, isAdmin, navigate]);
+  }, [currentUser, userProfile, navigate]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    if (!gender || !interestedIn || !currentUser) return;
     setLoading(true);
 
     try {
-      if (!currentUser) {
-        navigate("/auth");
-        return;
-      }
-
       // Validate birthday
       if (!birthday) {
         setError("Please enter your birthday");
@@ -182,7 +172,7 @@ export default function CompleteProfile() {
                 <select
                   className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
                   value={gender}
-                  onChange={(e) => setGender(e.target.value)}
+                  onChange={(e) => setGender(e.target.value as User['gender'])}
                   required
                 >
                   <option value="">Select Gender</option>
@@ -200,7 +190,7 @@ export default function CompleteProfile() {
                 <select
                   className="w-full p-3 border-2 border-gray-300 rounded bg-cream focus:border-orange focus:outline-none"
                   value={interestedIn}
-                  onChange={(e) => setInterestedIn(e.target.value)}
+                  onChange={(e) => setInterestedIn(e.target.value as User['interestedIn'])}
                   required
                 >
                   <option value="">Select Preference</option>

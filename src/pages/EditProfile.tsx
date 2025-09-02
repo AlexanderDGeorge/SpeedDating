@@ -2,14 +2,14 @@ import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import Button from "../components/Button";
 import { useAuth } from "../contexts/AuthContext";
 import { updateUser } from "../firebase/user";
+import type { User } from "../types";
 
 
 export default function EditProfile() {
-  const [gender, setGender] = useState("");
-  const [interestedIn, setInterestedIn] = useState("");
+  const [gender, setGender] = useState<User['gender']>();
+  const [interestedIn, setInterestedIn] = useState<User['interestedIn']>();
   const [birthday, setBirthday] = useState("");
   const [bio, setBio] = useState("");
   const [name, setName] = useState("");
@@ -22,11 +22,6 @@ export default function EditProfile() {
   const { currentUser, userProfile } = useAuth();
 
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/auth");
-      return;
-    }
-
     if (!userProfile) {
       navigate("/complete-profile");
       return;
@@ -40,20 +35,16 @@ export default function EditProfile() {
     setBirthday(userProfile.birthday || "");
     setBio(userProfile.bio || "");
     setInitialLoading(false);
-  }, [currentUser, userProfile, navigate]);
+  }, [userProfile, navigate]);
 
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    if(!currentUser || !gender || !interestedIn) return
     setLoading(true);
 
     try {
-      if (!currentUser) {
-        navigate("/auth");
-        return;
-      }
-
       // Validate name
       if (!name.trim() || name.trim().length < 2) {
         setError("Please enter your full name");
@@ -112,11 +103,7 @@ export default function EditProfile() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      <Header 
-        showBackButton={true}
-        backButtonText="Back to Dashboard"
-        backButtonPath="/"
-      />
+      <Header />
 
       {/* Main Content */}
       <main className="flex-grow flex items-center justify-center p-8">
@@ -206,8 +193,8 @@ export default function EditProfile() {
                   required
                 >
                   <option value="">Select Preference</option>
-                  <option value="men">Men</option>
-                  <option value="women">Women</option>
+                  <option value="male">Men</option>
+                  <option value="female">Women</option>
                   <option value="other">Other</option>
                   <option value="prefer not to say">Prefer not to say</option>
                 </select>
