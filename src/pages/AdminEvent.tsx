@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EditEventForm from "../components/EditEventForm";
 import EventParticipants from "../components/EventParticipants";
+import StatusBadge from "../components/StatusBadge";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
 import { Calendar, Clock, Users, UserCheck, Mars, Venus } from "lucide-react";
@@ -105,7 +106,7 @@ export default function AdminEvent() {
     try {
       // Generate mock users
       const maleNames = ['Alex Johnson', 'Mike Chen', 'David Smith', 'Ryan Wilson', 'Chris Brown'];
-      const femaleNames = ['Sarah Davis', 'Emma Wilson', 'Lisa Garcia', 'Amy Thompson', 'Kate Miller'];
+      const femaleNames = ['Sarah Jones', 'Emma Wilson', 'Lisa Garcia', 'Amy Thompson', 'Kate Miller'];
       
       const mockUsers = [];
       
@@ -115,7 +116,7 @@ export default function AdminEvent() {
           name: maleNames[i],
           email: `male${i + 1}@mockuser.com`,
           gender: 'male' as const,
-          interestedIn: 'female' as const,
+          interestedIn: 'women' as const,
           birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
           bio: `Mock user ${i + 1} for testing purposes`,
           createdAt: new Date().toISOString(),
@@ -142,7 +143,7 @@ export default function AdminEvent() {
           name: femaleNames[i],
           email: `female${i + 1}@mockuser.com`,
           gender: 'female' as const,
-          interestedIn: 'male' as const,
+          interestedIn: 'men' as const,
           birthday: new Date(1990 + Math.floor(Math.random() * 15), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString().split('T')[0],
           bio: `Mock user ${i + 1} for testing purposes`,
           createdAt: new Date().toISOString(),
@@ -327,24 +328,6 @@ export default function AdminEvent() {
   }
 
   const eventDate = new Date(event.start);
-  
-  const getEventStatusDisplay = () => {
-    switch (event.status) {
-      case 'cancelled':
-        return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
-      case 'checking-in':
-        return { text: 'Check-In Open', class: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-      case 'active':
-        return { text: 'Active', class: 'bg-green-100 text-green-800 border-green-200' };
-      case 'completed':
-        return { text: 'Completed', class: 'bg-gray-100 text-gray-800 border-gray-200' };
-      case 'upcoming':
-      default:
-        return { text: 'Upcoming', class: 'bg-blue-100 text-blue-800 border-blue-200' };
-    }
-  };
-
-  const eventStatus = getEventStatusDisplay();
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -363,9 +346,7 @@ export default function AdminEvent() {
                   <p className="text-gray-700 text-lg text-left">{event.description}</p>
                 )}
               </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class} whitespace-nowrap self-start`}>
-                {eventStatus.text}
-              </span>
+              <StatusBadge status={event.status} variant="event" />
             </div>
 
             <div className="space-y-4">
@@ -508,6 +489,12 @@ export default function AdminEvent() {
               )}
               {event.status === 'active' && (
                 <>
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate(`/event/${eventId}/matching`)}
+                  >
+                    Manage Matching
+                  </Button>
                   <Button
                     variant="secondary"
                     onClick={handleResetToCheckIn}

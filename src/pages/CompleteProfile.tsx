@@ -194,9 +194,9 @@ export default function CompleteProfile() {
                   required
                 >
                   <option value="">Select Preference</option>
-                  <option value="male">Men</option>
-                  <option value="female">Women</option>
-                  <option value="both">Both</option>
+                  <option value="men">Men</option>
+                  <option value="women">Women</option>
+                  <option value="other">Both</option>
                   <option value="other">Other</option>
                 </select>
               </div>

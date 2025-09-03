@@ -4,6 +4,7 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import Button from "../components/Button";
+import StatusBadge from "../components/StatusBadge";
 import { calculateAge } from "../utils/dateUtils";
 import { Calendar, Clock, Users, CheckCircle } from "lucide-react";
 import type { SpeedDatingEvent } from "../types/event";
@@ -240,16 +241,11 @@ export default function EventDetails() {
   })();
 
 
-  const getEventStatus = () => {
-    if (event.status === 'cancelled') return { text: 'Cancelled', class: 'bg-red-100 text-red-800 border-red-200' };
-    if (event.status === 'completed') return { text: 'Completed', class: 'bg-gray-100 text-gray-800 border-gray-200' };
-    if (event.status === 'active') return { text: 'Active', class: 'bg-green-100 text-green-800 border-green-200' };
-    if (event.status === 'checking-in') return { text: 'Check-In Open', class: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
-    if (isFull) return { text: 'Full', class: 'bg-orange-100 text-orange-800 border-orange-200' };
-    return { text: 'Open for Registration', class: 'bg-blue-100 text-blue-800 border-blue-200' };
+  const getStatusType = (): SpeedDatingEvent['status'] | 'full' | 'open' => {
+    if (event.status !== 'upcoming') return event.status;
+    if (isFull) return 'full';
+    return 'open';
   };
-
-  const eventStatus = getEventStatus();
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
@@ -268,9 +264,7 @@ export default function EventDetails() {
                   <p className="text-gray-700 text-lg">{event.description}</p>
                 )}
               </div>
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${eventStatus.class} whitespace-nowrap self-start`}>
-                {eventStatus.text}
-              </span>
+              <StatusBadge status={getStatusType()} variant="event" />
             </div>
 
             <div className="space-y-4">

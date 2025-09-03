@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import type { SpeedDatingEvent } from "../types/event";
+import StatusBadge from "./StatusBadge";
 import { Calendar, Clock, Users } from "lucide-react";
 
 interface EventProps {
@@ -11,39 +12,6 @@ export default function Event({ event, onClick }: EventProps) {
   const navigate = useNavigate();
 
   const eventDate = new Date(event.start);
-  
-  const getStatusConfig = () => {
-    switch (event.status) {
-      case 'cancelled':
-        return {
-          color: 'bg-red-100 text-red-800 border-red-200',
-          text: "Cancelled"
-        };
-      case 'checking-in':
-        return {
-          color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-          text: "Check-In Open"
-        };
-      case 'active':
-        return {
-          color: 'bg-green-100 text-green-800 border-green-200',
-          text: "Active"
-        };
-      case 'completed':
-        return {
-          color: 'bg-gray-100 text-gray-800 border-gray-200',
-          text: "Completed"
-        };
-      case 'upcoming':
-      default:
-        return {
-          color: 'bg-blue-100 text-blue-800 border-blue-200',
-          text: "Upcoming"
-        };
-    }
-  };
-
-  const statusConfig = getStatusConfig();
 
 
   const handleClick = () => {
@@ -62,9 +30,7 @@ export default function Event({ event, onClick }: EventProps) {
     >
       {/* Status Badge */}
       <div className="flex justify-between items-start mb-4">
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${statusConfig.color}`}>
-          {statusConfig.text}
-        </span>
+        <StatusBadge status={event.status} variant="event" size="sm" />
       </div>
 
       {/* Title */}

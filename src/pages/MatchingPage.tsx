@@ -4,25 +4,15 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../contexts/AuthContext";
 import { fetchEventPartners } from "../firebase/registration";
+import { saveRating } from "../firebase/rating";
+import { calculateAge } from "../utils/dateUtils";
 import type { User } from "../types";
-
-type RatingType = 'not-interested' | 'maybe' | 'interested' | null;
-
-const calculateAge = (birthday: string): number => {
-  const birthDate = new Date(birthday);
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
-  }
-  return age;
-};
+import type { RatingType } from "../firebase/rating";
 
 export default function MatchingPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const { currentUser, userProfile } = useAuth();
-  const [rating, setRating] = useState<RatingType>(null);
+  const [rating, setRating] = useState<RatingType | null>(null);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [partnersQueue, setPartnersQueue] = useState<User[]>([]);
@@ -79,15 +69,13 @@ export default function MatchingPage() {
       const ratingData = {
         userId: currentUser.uid,
         partnerId: partnersQueue[currentIndex].id,
-        partnerName: partnersQueue[currentIndex].name,
+        eventId: eventId!,
         rating: rating,
-        notes: notes.trim(),
-        createdAt: new Date().toISOString(),
-        sessionDate: new Date().toDateString(),
-        ...(eventId && { eventId })
+        notes: notes.trim() || undefined,
+        createdAt: new Date().toISOString()
       };
       
-      // await setDoc(doc(db, "ratings", `${currentUser.uid}_${partnersQueue[currentIndex].id}`), ratingData);
+      await saveRating(ratingData);
 
       // Move to next partner
       const nextIndex = currentIndex + 1;
@@ -203,19 +191,19 @@ export default function MatchingPage() {
       <Header />
 
       {/* Progress Indicator */}
-      <div className="bg-white border-b-2 border-navy p-4">
+      <div className="mt-4 p-4">
         <div className="max-w-6xl mx-auto text-center">
-          <div className="text-navy font-semibold">
+          <div className="text-navy text-xl font-semibold">
             Partner {currentIndex + 1} of {partnersQueue.length}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="flex-grow flex items-center justify-center p-8">
+      <main className="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-2xl">
           {partnersQueue[currentIndex] && (
-            <div className="bg-white border-4 border-navy p-8 rounded-lg shadow-lg">
+            <div className="bg-white border border-gray-200 p-4 sm:p-8 rounded-lg shadow-md">
               {/* Partner Info */}
               <div className="text-center mb-8">
                 <div className="bg-teal p-6 rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
@@ -223,23 +211,27 @@ export default function MatchingPage() {
                     {partnersQueue[currentIndex].name.charAt(0)}
                   </span>
                 </div>
-                <h2 className="text-3xl font-bold text-navy mb-2">{partnersQueue[currentIndex].name}</h2>
-                <div className="flex justify-center gap-6 text-gray-700 mb-4">
-                  <div className="bg-cream px-4 py-2 rounded-lg">
-                    <span className="text-sm text-gray-600">Age</span>
-                    <p className="font-semibold">{calculateAge(partnersQueue[currentIndex].birthday)}</p>
+                <h2 className="text-3xl font-bold text-navy mb-4">{partnersQueue[currentIndex].name}</h2>
+                
+                {/* Partner Details Card */}
+                <div className="bg-cream rounded-lg p-4 max-w-xl mx-auto">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center">
+                      <span className="text-sm text-gray-600">Age</span>
+                      <p className="font-semibold">{calculateAge(partnersQueue[currentIndex].birthday)}</p>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm text-gray-600">Gender</span>
+                      <p className="font-semibold capitalize">{partnersQueue[currentIndex].gender}</p>
+                    </div>
                   </div>
-                  <div className="bg-cream px-4 py-2 rounded-lg">
-                    <span className="text-sm text-gray-600">Gender</span>
-                    <p className="font-semibold capitalize">{partnersQueue[currentIndex].gender}</p>
-                  </div>
+                  {partnersQueue[currentIndex].bio && (
+                    <div className="pt-4">
+                      <p className="text-sm text-gray-600 mb-1 text-center">About Me</p>
+                      <p className="text-navy italic text-center">"{partnersQueue[currentIndex].bio}"</p>
+                    </div>
+                  )}
                 </div>
-                {partnersQueue[currentIndex].bio && (
-                  <div className="bg-cream p-4 rounded-lg max-w-md mx-auto">
-                    <p className="text-sm text-gray-600 mb-1">About Me</p>
-                    <p className="text-navy italic">"{partnersQueue[currentIndex].bio}"</p>
-                  </div>
-                )}
               </div>
 
               {/* Rating Options */}
@@ -248,7 +240,7 @@ export default function MatchingPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <button
                     onClick={() => setRating('not-interested')}
-                    className={`p-4 rounded-lg border-2 transition-all font-semibold ${
+                    className={`p-4 rounded-lg border-2 transition-all  ${
                       rating === 'not-interested' 
                         ? 'bg-red-500 border-red-600 text-white' 
                         : 'bg-white border-red-300 text-red-600 hover:bg-red-50'
@@ -259,7 +251,7 @@ export default function MatchingPage() {
                   </button>
                   <button
                     onClick={() => setRating('maybe')}
-                    className={`p-4 rounded-lg border-2 transition-all font-semibold ${
+                    className={`p-4 rounded-lg border-2 transition-all  ${
                       rating === 'maybe' 
                         ? 'bg-yellow-500 border-yellow-600 text-white' 
                         : 'bg-white border-yellow-300 text-yellow-600 hover:bg-yellow-50'
@@ -270,7 +262,7 @@ export default function MatchingPage() {
                   </button>
                   <button
                     onClick={() => setRating('interested')}
-                    className={`p-4 rounded-lg border-2 transition-all font-semibold ${
+                    className={`p-4 rounded-lg border-2 transition-all  ${
                       rating === 'interested' 
                         ? 'bg-green-500 border-green-600 text-white' 
                         : 'bg-white border-green-300 text-green-600 hover:bg-green-50'

@@ -193,8 +193,8 @@ export default function EditProfile() {
                   required
                 >
                   <option value="">Select Preference</option>
-                  <option value="male">Men</option>
-                  <option value="female">Women</option>
+                  <option value="men">Men</option>
+                  <option value="women">Women</option>
                   <option value="other">Other</option>
                   <option value="prefer not to say">Prefer not to say</option>
                 </select>

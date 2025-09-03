@@ -105,7 +105,18 @@ export async function fetchEventPartners(eventId: string, user: User):Promise<Us
 
     if (partnerDoc.exists() && partnerId !== user.id) {
       const partner = { id: partnerId, ...partnerDoc.data() } as User;
-      if (partner.interestedIn === user.gender && partner.gender === user.interestedIn){
+      // Check if users are interested in each other's genders
+      const userInterestedInPartner = 
+        (user.interestedIn === 'men' && partner.gender === 'male') ||
+        (user.interestedIn === 'women' && partner.gender === 'female') ||
+        (user.interestedIn === 'other');
+      
+      const partnerInterestedInUser = 
+        (partner.interestedIn === 'men' && user.gender === 'male') ||
+        (partner.interestedIn === 'women' && user.gender === 'female') ||
+        (partner.interestedIn === 'other');
+      
+      if (userInterestedInPartner && partnerInterestedInUser) {
         partners.push(partner)
       }
     }

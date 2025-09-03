@@ -1,4 +1,5 @@
 import { calculateAge } from "../utils/dateUtils";
+import StatusBadge from "./StatusBadge";
 import type { SpeedDatingEvent } from "../types/event";
 import type { EventRegistration } from "../types/registration";
 import type { User } from "../types";
@@ -12,24 +13,6 @@ interface EventParticipantsProps {
 export default function EventParticipants({ event, registrations, registeredUsers }: EventParticipantsProps) {
   const eventDate = new Date(event.start);
   const isPastEvent = eventDate < new Date();
-  
-  const getStatusColor = (status: EventRegistration['status']) => {
-    switch (status) {
-      case 'registered': return 'text-blue-600 bg-blue-100';
-      case 'checked-in': return 'text-green-600 bg-green-100';
-      case 'cancelled': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusText = (status: EventRegistration['status']) => {
-    switch (status) {
-      case 'registered': return 'Registered';
-      case 'checked-in': return 'Checked In';
-      case 'cancelled': return 'Cancelled';
-      default: return 'Unknown';
-    }
-  };
 
   const getUserForRegistration = (userId: string): User | undefined => {
     return registeredUsers.find(user => user.id === userId);
@@ -65,9 +48,7 @@ export default function EventParticipants({ event, registrations, registeredUser
                     <td className="p-3 text-left text-gray-600">{user?.birthday ? calculateAge(user.birthday) : 'N/A'}</td>
                     <td className="p-3 text-left capitalize text-gray-600">{user?.gender || 'N/A'}</td>
                     <td className="p-3 text-left">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(registration.status)}`}>
-                        {getStatusText(registration.status)}
-                      </span>
+                      <StatusBadge status={registration.status} variant="registration" size="sm" />
                     </td>
                     <td className="hidden sm:block p-3 text-left text-sm text-gray-600">
                       {new Date(registration.registeredAt).toLocaleDateString()}
