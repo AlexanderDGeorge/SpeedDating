@@ -3,5 +3,5 @@ export interface EventRegistration {
   eventId: string;
   userId: string;
   registeredAt: string;
-  status: 'registered' | 'checked-in' | 'no-show' | 'cancelled';
+  status: 'registered' | 'checked-in' | 'cancelled';
 }

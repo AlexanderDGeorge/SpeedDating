@@ -22,8 +22,6 @@ export default function UserAuth() {
       
       if (result.needsProfileCompletion) {
         navigate("/complete-profile");
-      } else if (result.isAdmin) {
-        navigate("/admin");
       } else {
         navigate("/");
       }
@@ -49,8 +47,6 @@ export default function UserAuth() {
       
       if (result.needsProfileCompletion) {
         navigate("/complete-profile");
-      } else if (result.isAdmin) {
-        navigate("/admin");
       } else {
         navigate("/");
       }
@@ -63,11 +59,7 @@ export default function UserAuth() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      <Header 
-        showBackButton={true}
-        backButtonText="Back to Home"
-        backButtonPath="/"
-      />
+      <Header />
 
       {/* Main Content */}
       <main className="flex-grow flex items-center justify-center p-8">

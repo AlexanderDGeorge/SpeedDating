@@ -47,10 +47,10 @@ export async function updateEvent(eventId: string, updates: Partial<SpeedDatingE
   await updateDoc(doc(db, "events", eventId), updates);
 }
 
-export async function cancelEvent(eventId: string, userId: string): Promise<void> {
+export async function cancelEvent(eventId: string): Promise<void> {
   await updateDoc(doc(db, "events", eventId), {
     status: 'cancelled',
     cancelledAt: new Date().toISOString(),
-    cancelledBy: userId
   });
 }
+
